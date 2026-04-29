@@ -48,6 +48,9 @@ export default function ProductionPage({ selectedLocation = "all" }) {
     notes: "",
   });
 
+
+
+
   const [usedItems, setUsedItems] = useState([
     { item: "", quantityUsed: "", unit: "", pricePerUnit: 0 },
   ]);
@@ -61,7 +64,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
       estimatedGlasses: "",
       notes: "",
     });
-    setUsedItems([{ item: "", quantityUsed: "", unit: "", pricePerUnit: 0 }]);
+    setUsedItems(buildPrefilledUsedItems());
   };
 
   const getLocationId = (value) => {
@@ -147,6 +150,20 @@ export default function ProductionPage({ selectedLocation = "all" }) {
     });
   }, [form.location, recipeItems]);
 
+
+    const buildPrefilledUsedItems = (items = filteredItemsForModal) => {
+  if (!items.length) {
+    return [{ item: "", quantityUsed: "", unit: "", pricePerUnit: 0 }];
+  }
+
+  return items.map((item) => ({
+    item: item._id,
+    quantityUsed: "",
+    unit: item.unit || "",
+    pricePerUnit: item.pricePerUnit || 0,
+  }));
+};
+
   const selectedPrepared = productions.reduce(
     (sum, item) => sum + Number(item.totalPreparedLiters || 0),
     0
@@ -211,7 +228,14 @@ export default function ProductionPage({ selectedLocation = "all" }) {
         location: value,
       }));
 
-      setUsedItems([{ item: "", quantityUsed: "", unit: "", pricePerUnit: 0 }]);
+      const locationItems = recipeItems.filter((item) => {
+  const itemLocation =
+    typeof item.location === "object" ? item.location?._id : item.location;
+
+  return itemLocation === value;
+});
+
+setUsedItems(buildPrefilledUsedItems(locationItems));
       return;
     }
 
@@ -230,7 +254,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
       estimatedGlasses: "",
       notes: "",
     });
-    setUsedItems([{ item: "", quantityUsed: "", unit: "", pricePerUnit: 0 }]);
+    setUsedItems(buildPrefilledUsedItems());
     setOpen(true);
   };
 
@@ -696,13 +720,10 @@ export default function ProductionPage({ selectedLocation = "all" }) {
                 >
                   <div className="grid gap-3 sm:grid-cols-2">
                     <select
-                      className="input min-w-0 text-sm"
-                      value={used.item}
-                      disabled={saving}
-                      onChange={(e) =>
-                        updateUsedItem(index, "item", e.target.value)
-                      }
-                    >
+  className="input min-w-0 text-sm"
+  value={used.item}
+  disabled
+>
                       <option value="">Select item</option>
                       {filteredItemsForModal.map((item) => (
                         <option key={item._id} value={item._id}>
