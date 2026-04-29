@@ -85,7 +85,7 @@ export default function DashboardPage({ selectedLocation }) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[32px] bg-[#2a1608] p-5 text-white shadow-sm sm:p-6 lg:p-8">
+      <div className="rounded-[8px] bg-[#2a1608] p-5 text-white shadow-sm sm:p-6 lg:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm font-black uppercase tracking-wide text-[#f2c078]">
@@ -103,7 +103,7 @@ export default function DashboardPage({ selectedLocation }) {
             </p>
           </div>
 
-          <div className="rounded-3xl bg-white/10 p-4">
+          <div className="rounded-[16px] bg-white/10 p-4">
             <p className="text-sm font-semibold text-[#f2c078]">
               Recovery Rate
             </p>
@@ -121,14 +121,14 @@ export default function DashboardPage({ selectedLocation }) {
           return (
             <div
               key={card.title}
-              className={`rounded-[28px] p-5 shadow-sm ${
+              className={`rounded-[16px] p-5 shadow-sm ${
                 card.type === "dark"
                   ? "bg-[#2a1608] text-white"
                   : "bg-white text-[#2a1608]"
               }`}
             >
               <div
-                className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl ${
+                className={`mb-4 flex h-12 w-12 items-center justify-center rounded-[16px] ${
                   card.type === "dark" ? "bg-white/10" : "bg-[#fff2d8]"
                 }`}
               >
@@ -164,12 +164,12 @@ export default function DashboardPage({ selectedLocation }) {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
-        <div className="rounded-[28px] bg-white p-5 shadow-sm">
+        <div className="rounded-[16px] bg-white p-5 shadow-sm">
           <h2 className="text-xl font-black">Business Breakdown</h2>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {businessCards.map(([title, value]) => (
-              <div key={title} className="rounded-2xl bg-[#fff8ea] p-4">
+              <div key={title} className="rounded-[16px] bg-[#fff8ea] p-4">
                 <p className="text-xs font-black text-[#9a6b3e]">{title}</p>
                 <h3 className="mt-1 text-xl font-black">
                   {loading ? "..." : value}
@@ -179,9 +179,9 @@ export default function DashboardPage({ selectedLocation }) {
           </div>
         </div>
 
-        <div className="rounded-[28px] bg-white p-5 shadow-sm">
+        <div className="rounded-[16px] bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#fff2d8]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#fff2d8]">
               <AlertCircle size={20} />
             </div>
             <div>

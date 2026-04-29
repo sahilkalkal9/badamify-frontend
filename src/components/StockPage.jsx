@@ -24,6 +24,7 @@ export default function StockPage({ selectedLocation = "all" }) {
   const [stockPurchases, setStockPurchases] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
     location: "",
@@ -36,6 +37,30 @@ export default function StockPage({ selectedLocation = "all" }) {
     purchaseDate: "",
     notes: "",
   });
+
+  const getLocationName = (locationValue) => {
+    if (locationValue?.name) return locationValue.name;
+
+    const locationId =
+      typeof locationValue === "object" ? locationValue?._id : locationValue;
+
+    const found = locations.find((loc) => loc._id === locationId);
+    return found?.name || "-";
+  };
+
+  const resetForm = () => {
+    setForm({
+      location: selectedLocation !== "all" ? selectedLocation : "",
+      item: "",
+      quantity: "",
+      pricePerUnit: "",
+      vendorName: "",
+      paymentStatus: "paid",
+      paidAmount: "",
+      purchaseDate: "",
+      notes: "",
+    });
+  };
 
   const fetchLocations = async () => {
     try {
@@ -107,6 +132,7 @@ export default function StockPage({ selectedLocation = "all" }) {
     return {
       id: item._id,
       item: item.name,
+      location: getLocationName(item.location),
       stock: `${Number(item.currentStock || 0).toLocaleString("en-IN")} ${
         item.unit
       }`,
@@ -122,6 +148,7 @@ export default function StockPage({ selectedLocation = "all" }) {
   const purchaseRows = stockPurchases.map((purchase) => ({
     id: purchase._id,
     item: purchase.itemName,
+    location: getLocationName(purchase.location),
     quantity: `${Number(purchase.quantity || 0).toLocaleString("en-IN")} ${
       purchase.unit
     }`,
@@ -184,45 +211,71 @@ export default function StockPage({ selectedLocation = "all" }) {
     }));
   };
 
+  const handleOpenModal = () => {
+    resetForm();
+    setOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    if (saving) return;
+    setOpen(false);
+    resetForm();
+  };
+
   const handleSave = async () => {
+    if (saving) return;
+
     try {
       if (!form.location) return alert("Location is required");
       if (!form.item) return alert("Item is required");
       if (!form.quantity) return alert("Quantity is required");
+      if (Number(form.quantity || 0) <= 0)
+        return alert("Quantity must be greater than 0");
       if (!form.pricePerUnit) return alert("Price per unit is required");
+      if (Number(form.pricePerUnit || 0) < 0)
+        return alert("Price per unit cannot be negative");
+
+      if (
+        form.paymentStatus === "partial" &&
+        Number(form.paidAmount || 0) >= totalAmount
+      ) {
+        return alert("Partial paid amount must be less than total amount");
+      }
+
+      if (
+        form.paymentStatus === "partial" &&
+        Number(form.paidAmount || 0) <= 0
+      ) {
+        return alert("Partial paid amount must be greater than 0");
+      }
+
+      setSaving(true);
 
       await api.post("/stock-purchases", {
         location: form.location,
         item: form.item,
         quantity: Number(form.quantity || 0),
         pricePerUnit: Number(form.pricePerUnit || 0),
-        vendorName: form.vendorName,
+        vendorName: form.vendorName.trim(),
         paymentStatus: form.paymentStatus,
         paidAmount:
           form.paymentStatus === "paid"
             ? totalAmount
+            : form.paymentStatus === "unpaid"
+            ? 0
             : Number(form.paidAmount || 0),
         purchaseDate: form.purchaseDate || new Date().toISOString(),
-        notes: form.notes,
+        notes: form.notes.trim(),
       });
 
-      setForm({
-        location: selectedLocation !== "all" ? selectedLocation : "",
-        item: "",
-        quantity: "",
-        pricePerUnit: "",
-        vendorName: "",
-        paymentStatus: "paid",
-        paidAmount: "",
-        purchaseDate: "",
-        notes: "",
-      });
-
+      resetForm();
       setOpen(false);
       fetchStockData();
     } catch (error) {
       console.error("Create stock purchase error:", error);
       alert(error?.response?.data?.message || "Failed to save stock purchase");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -247,36 +300,30 @@ export default function StockPage({ selectedLocation = "all" }) {
         />
       </div>
 
-      <div className="rounded-[28px] bg-[#2a1608] p-5 text-white shadow-sm">
+      <div className="rounded-[16px] bg-[#2a1608] p-5 text-white shadow-sm sm:p-6">
         <p className="text-sm font-semibold text-[#f2c078]">
           Stock Investment Rule
         </p>
-        <h2 className="mt-1 text-2xl font-black">
+        <h2 className="mt-1 text-xl font-black sm:text-2xl">
           New stock purchase = Total Investment
         </h2>
-        <p className="mt-2 text-sm text-white/70">
+        <p className="mt-2 text-sm leading-6 text-white/70">
           Daily production me jo material use hoga, wo sirf stock consume karega.
           Investment me dobara add nahi hoga.
         </p>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-[28px] bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-[16px] bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-black">Stock Management</h2>
+          <h2 className="text-xl font-black sm:text-2xl">Stock Management</h2>
           <p className="text-sm font-semibold text-[#9a6b3e]">
             Add new stock purchases and track current stock
           </p>
         </div>
 
         <button
-          onClick={() => {
-            setForm((prev) => ({
-              ...prev,
-              location: selectedLocation !== "all" ? selectedLocation : "",
-            }));
-            setOpen(true);
-          }}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-[#2a1608] px-5 py-3 font-black text-white"
+          onClick={handleOpenModal}
+          className="flex w-full items-center justify-center gap-2 rounded-[16px] bg-[#2a1608] px-5 py-3 font-black text-white sm:w-auto"
         >
           <Plus size={18} />
           Add Stock
@@ -297,14 +344,14 @@ export default function StockPage({ selectedLocation = "all" }) {
         loading={loading}
       />
 
-      <Modal open={open} title="Add New Stock" onClose={() => setOpen(false)}>
+      <Modal open={open} title="Add New Stock" onClose={handleCloseModal}>
         <form className="space-y-3">
           <select
             className="input"
             name="location"
             value={form.location}
             onChange={handleChange}
-            disabled={selectedLocation !== "all"}
+            disabled={selectedLocation !== "all" || saving}
           >
             <option value="">Select location</option>
             {locations.map((location) => (
@@ -319,6 +366,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             name="item"
             value={form.item}
             onChange={handleChange}
+            disabled={saving}
           >
             <option value="">Select item</option>
             {filteredItemsForModal.map((item) => (
@@ -333,6 +381,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             name="quantity"
             value={form.quantity}
             onChange={handleChange}
+            disabled={saving}
             type="number"
             placeholder="Quantity purchased"
           />
@@ -351,6 +400,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             name="pricePerUnit"
             value={form.pricePerUnit}
             onChange={handleChange}
+            disabled={saving}
             type="number"
             placeholder="Price per unit"
           />
@@ -360,6 +410,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             name="vendorName"
             value={form.vendorName}
             onChange={handleChange}
+            disabled={saving}
             placeholder="Vendor name"
           />
 
@@ -368,6 +419,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             name="paymentStatus"
             value={form.paymentStatus}
             onChange={handleChange}
+            disabled={saving}
           >
             <option value="paid">Paid</option>
             <option value="unpaid">Unpaid</option>
@@ -380,7 +432,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             value={form.paymentStatus === "paid" ? totalAmount : form.paidAmount}
             onChange={handleChange}
             type="number"
-            disabled={form.paymentStatus === "paid"}
+            disabled={form.paymentStatus === "paid" || saving}
             placeholder="Paid amount"
           />
 
@@ -389,6 +441,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             name="purchaseDate"
             value={form.purchaseDate}
             onChange={handleChange}
+            disabled={saving}
             type="date"
           />
 
@@ -397,19 +450,21 @@ export default function StockPage({ selectedLocation = "all" }) {
             name="notes"
             value={form.notes}
             onChange={handleChange}
+            disabled={saving}
             placeholder="Notes"
           />
 
-          <div className="rounded-2xl bg-[#fff8ea] p-4 text-sm font-bold text-[#9a6b3e]">
+          <div className="rounded-[16px] bg-[#fff8ea] p-4 text-sm font-bold text-[#9a6b3e]">
             Total amount: {formatMoney(totalAmount)}
           </div>
 
           <button
             type="button"
             onClick={handleSave}
-            className="w-full rounded-2xl bg-[#2a1608] py-3 font-black text-white"
+            disabled={saving}
+            className="w-full rounded-[16px] bg-[#2a1608] py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Save Stock Purchase
+            {saving ? "Saving..." : "Save Stock Purchase"}
           </button>
         </form>
       </Modal>
@@ -419,12 +474,14 @@ export default function StockPage({ selectedLocation = "all" }) {
 
 function SummaryCard({ title, value }) {
   return (
-    <div className="rounded-[28px] bg-white p-5 shadow-sm">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff2d8]">
+    <div className="rounded-[24px] bg-white p-4 shadow-sm sm:rounded-[16px] sm:p-5">
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#fff2d8] sm:h-12 sm:w-12">
         <Boxes size={22} />
       </div>
-      <p className="text-sm font-black text-[#9a6b3e]">{title}</p>
-      <h3 className="mt-2 text-2xl font-black sm:text-3xl">{value}</h3>
+      <p className="text-xs font-black text-[#9a6b3e] sm:text-sm">{title}</p>
+      <h3 className="mt-2 break-words text-xl font-black sm:text-2xl lg:text-3xl">
+        {value}
+      </h3>
     </div>
   );
 }
@@ -432,20 +489,96 @@ function SummaryCard({ title, value }) {
 function StockTable({ title, type, data, loading }) {
   const columns =
     type === "current"
-      ? ["Item", "Current Stock", "Price / Unit", "Stock Value", "Alert"]
-      : ["Item", "Quantity", "Price / Unit", "Total", "Paid", "Vendor", "Date"];
+      ? ["Item", "Location", "Current Stock", "Price / Unit", "Stock Value", "Alert"]
+      : [
+          "Item",
+          "Location",
+          "Quantity",
+          "Price / Unit",
+          "Total",
+          "Paid",
+          "Vendor",
+          "Date",
+        ];
 
   return (
-    <div className="overflow-hidden rounded-[28px] bg-white shadow-sm">
-      <div className="flex items-center gap-3 border-b border-[#eadcc5] p-5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#fff2d8]">
+    <div className="overflow-hidden rounded-[16px] bg-white shadow-sm">
+      <div className="flex items-center gap-3 border-b border-[#eadcc5] p-4 sm:p-5">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-[#fff2d8]">
           {type === "current" ? <Boxes size={18} /> : <ShoppingCart size={18} />}
         </div>
-        <h3 className="text-xl font-black">{title}</h3>
+        <h3 className="text-lg font-black sm:text-xl">{title}</h3>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[850px] text-left text-sm">
+      <div className="grid gap-4 p-4 md:hidden">
+        {loading ? (
+          <div className="rounded-[16px] bg-[#fff8ea] p-5 text-center font-bold text-[#9a6b3e]">
+            Loading stock data...
+          </div>
+        ) : data.length > 0 ? (
+          data.map((row, index) => (
+            <div
+              key={row.id || index}
+              className="rounded-[24px] border border-[#eadcc5] bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-[#fff2d8]">
+                  {type === "current" ? (
+                    <Boxes size={18} />
+                  ) : (
+                    <ShoppingCart size={18} />
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <h4 className="break-words text-base font-black">
+                    {row.item}
+                  </h4>
+                  <p className="mt-1 text-xs font-black uppercase tracking-wide text-[#9a6b3e]">
+                    {row.location}
+                  </p>
+                </div>
+              </div>
+
+              {type === "current" ? (
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <InfoBox title="Current Stock" value={row.stock} />
+                  <InfoBox title="Price / Unit" value={row.pricePerUnit} />
+                  <InfoBox title="Stock Value" value={row.value} />
+                  <div className="rounded-[16px] bg-[#fff8ea] p-3">
+                    <p className="text-xs font-black text-[#9a6b3e]">Alert</p>
+                    <span
+                      className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-black ${
+                        row.alert === "Low"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-green-100 text-green-700"
+                      }`}
+                    >
+                      {row.alert}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <InfoBox title="Quantity" value={row.quantity} />
+                  <InfoBox title="Price / Unit" value={row.pricePerUnit} />
+                  <InfoBox title="Total" value={row.total} />
+                  <InfoBox title="Paid" value={row.paid} />
+                  <InfoBox title="Vendor" value={row.vendor} />
+                  <InfoBox title="Date" value={row.date} />
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <div className="rounded-[16px] bg-[#fff8ea] p-5 text-center font-bold text-[#9a6b3e]">
+            No stock data found
+          </div>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[980px] text-left text-sm">
           <thead className="bg-[#fff8ea]">
             <tr>
               {columns.map((col) => (
@@ -472,6 +605,7 @@ function StockTable({ title, type, data, loading }) {
                   {type === "current" ? (
                     <>
                       <td className="px-5 py-4 font-black">{row.item}</td>
+                      <td className="px-5 py-4 font-semibold">{row.location}</td>
                       <td className="px-5 py-4 font-semibold">{row.stock}</td>
                       <td className="px-5 py-4 font-semibold">
                         {row.pricePerUnit}
@@ -492,6 +626,7 @@ function StockTable({ title, type, data, loading }) {
                   ) : (
                     <>
                       <td className="px-5 py-4 font-black">{row.item}</td>
+                      <td className="px-5 py-4 font-semibold">{row.location}</td>
                       <td className="px-5 py-4 font-semibold">{row.quantity}</td>
                       <td className="px-5 py-4 font-semibold">
                         {row.pricePerUnit}
@@ -517,6 +652,15 @@ function StockTable({ title, type, data, loading }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function InfoBox({ title, value }) {
+  return (
+    <div className="rounded-[16px] bg-[#fff8ea] p-3">
+      <p className="text-xs font-black text-[#9a6b3e]">{title}</p>
+      <p className="mt-1 break-words font-black">{value}</p>
     </div>
   );
 }

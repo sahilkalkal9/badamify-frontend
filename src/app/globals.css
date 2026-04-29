@@ -1,23 +1,61 @@
+@import url("https://fonts.googleapis.com/css2?family=Play:wght@400;700&display=swap");
 @import "tailwindcss";
 
 * {
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
+html {
+  font-size: 14px; /* overall scale chhota */
 }
 
+body {
+  margin: 0;
+  font-family: "Play", sans-serif;
+  font-weight: 400;
+}
+
+/* headings thoda bold but not heavy */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 700;
+}
+
+/* buttons clean */
+button {
+  font-family: inherit;
+  font-weight: 500;
+}
+
+/* inputs compact */
 .input {
   width: 100%;
   border-radius: 1rem;
   border: 1px solid #eadcc5;
-  padding: 0.85rem 1rem;
-  font-size: 0.9rem;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 400;
   outline: none;
   background: #fffaf2;
 }
 
 .input:focus {
   border-color: #2a1608;
+}
+
+/* Tailwind font overrides (important part) */
+.font-black {
+  font-weight: 700 !important;
+}
+
+.font-bold {
+  font-weight: 600 !important;
+}
+
+.font-semibold {
+  font-weight: 500 !important;
 }

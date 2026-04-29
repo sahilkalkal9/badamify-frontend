@@ -30,12 +30,12 @@ export default function HomePage() {
           <h2 className="text-2xl font-black">Coming next: {activePage}</h2>
         </div>
       )} */}
-      {activePage === "locations" && <LocationsPage />}
-      {activePage === "recipe" && <RecipeItemsPage />}
-      {activePage === "stock" && <StockPage />}
-      {activePage === "setup" && <SetupStuffPage />}
-      {activePage === "production" && <ProductionPage />}
-      {activePage === "sales" && <SalesPage />}
+      {activePage === "locations" && <LocationsPage selectedLocation={selectedLocation} />}
+      {activePage === "recipe" && <RecipeItemsPage selectedLocation={selectedLocation} />}
+      {activePage === "stock" && <StockPage selectedLocation={selectedLocation} />}
+      {activePage === "setup" && <SetupStuffPage selectedLocation={selectedLocation} />}
+      {activePage === "production" && <ProductionPage selectedLocation={selectedLocation} />}
+      {activePage === "sales" && <SalesPage selectedLocation={selectedLocation} />}
     </AdminLayout>
   );
 }

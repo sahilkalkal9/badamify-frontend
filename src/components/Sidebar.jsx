@@ -69,7 +69,7 @@ export default function Sidebar({
                   setActivePage(item.key);
                   setSidebarOpen(false);
                 }}
-                className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-black transition ${
+                className={`flex w-full items-center gap-3 rounded-[16px] px-4 py-3 text-left text-sm font-black transition ${
                   active
                     ? "bg-[#2a1608] text-white"
                     : "text-[#4b2a14] hover:bg-[#f1dfc4]"

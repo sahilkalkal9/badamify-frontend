@@ -174,59 +174,63 @@ export default function SalesPage({ selectedLocation = "all" }) {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 rounded-[28px] bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h2 className="text-2xl font-black">Sales Entries</h2>
-          <p className="text-sm font-semibold text-[#9a6b3e]">
-            Date-wise customer sales, paid/unpaid and extra amount
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <button
-            onClick={() => setSelectedDate(getToday())}
-            className="rounded-2xl bg-[#fff2d8] px-4 py-3 text-sm font-black text-[#2a1608]"
-          >
-            Today
-          </button>
-
-          <button
-            onClick={() => setSelectedDate(getYesterday())}
-            className="rounded-2xl bg-[#fff2d8] px-4 py-3 text-sm font-black text-[#2a1608]"
-          >
-            Yesterday
-          </button>
-
-          <div className="flex items-center gap-2 rounded-2xl border border-[#eadcc5] bg-[#fff8ea] px-4 py-3">
-            <CalendarDays size={18} />
-            <input
-              type="date"
-              value={selectedDate}
-              max={getToday()}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-sm font-black outline-none"
-            />
+    <div className="space-y-4 sm:space-y-5">
+      <div className="rounded-[16px] bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-xl font-black leading-tight text-[#2a1608] sm:text-2xl">
+              Sales Entries
+            </h2>
+            <p className="mt-1 text-xs font-semibold leading-5 text-[#9a6b3e] sm:text-sm">
+              Date-wise customer sales, paid/unpaid and extra amount
+            </p>
           </div>
 
-          <button
-            onClick={() => {
-              setForm((prev) => ({
-                ...prev,
-                location: selectedLocation !== "all" ? selectedLocation : "",
-                date: selectedDate,
-              }));
-              setOpen(true);
-            }}
-            className="flex items-center justify-center gap-2 rounded-2xl bg-[#2a1608] px-5 py-3 font-black text-white"
-          >
-            <Plus size={18} />
-            Add Sale
-          </button>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3">
+            <button
+              onClick={() => setSelectedDate(getToday())}
+              className="rounded-[14px] bg-[#fff2d8] px-3 py-2.5 text-xs font-black text-[#2a1608] sm:px-4 sm:py-3 sm:text-sm"
+            >
+              Today
+            </button>
+
+            <button
+              onClick={() => setSelectedDate(getYesterday())}
+              className="rounded-[14px] bg-[#fff2d8] px-3 py-2.5 text-xs font-black text-[#2a1608] sm:px-4 sm:py-3 sm:text-sm"
+            >
+              Yesterday
+            </button>
+
+            <div className="col-span-2 flex min-w-0 items-center gap-2 rounded-[14px] border border-[#eadcc5] bg-[#fff8ea] px-3 py-2.5 sm:col-span-1 sm:px-4 sm:py-3">
+              <CalendarDays size={16} className="shrink-0" />
+              <input
+                type="date"
+                value={selectedDate}
+                max={getToday()}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full min-w-0 bg-transparent text-xs font-black outline-none sm:text-sm"
+              />
+            </div>
+
+            <button
+              onClick={() => {
+                setForm((prev) => ({
+                  ...prev,
+                  location: selectedLocation !== "all" ? selectedLocation : "",
+                  date: selectedDate,
+                }));
+                setOpen(true);
+              }}
+              className="col-span-2 flex items-center justify-center gap-2 rounded-[14px] bg-[#2a1608] px-4 py-3 text-sm font-black text-white sm:col-span-1 sm:px-5"
+            >
+              <Plus size={17} />
+              Add Sale
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <SummaryCard
           title="Selected Date Sale"
           value={loading ? "Loading..." : `₹${totalSale.toLocaleString("en-IN")}`}
@@ -247,20 +251,64 @@ export default function SalesPage({ selectedLocation = "all" }) {
         />
       </div>
 
-      <div className="overflow-hidden rounded-[28px] bg-white shadow-sm">
-        <div className="flex items-center gap-3 border-b border-[#eadcc5] p-5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#fff2d8]">
+      <div className="overflow-hidden rounded-[16px] bg-white shadow-sm">
+        <div className="flex items-center gap-3 border-b border-[#eadcc5] p-4 sm:p-5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-[#fff2d8] sm:h-10 sm:w-10">
             <ShoppingBag size={18} />
           </div>
-          <div>
-            <h3 className="text-xl font-black">Sales History</h3>
-            <p className="text-sm font-semibold text-[#9a6b3e]">
+          <div className="min-w-0">
+            <h3 className="text-lg font-black leading-tight sm:text-xl">
+              Sales History
+            </h3>
+            <p className="text-xs font-semibold text-[#9a6b3e] sm:text-sm">
               Showing sales for {selectedDate}
             </p>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="block p-3 sm:p-4 md:hidden">
+          {loading ? (
+            <div className="rounded-[16px] bg-[#fff8ea] px-4 py-8 text-center text-sm font-bold text-[#9a6b3e]">
+              Loading sales...
+            </div>
+          ) : sales.length > 0 ? (
+            <div className="space-y-3">
+              {sales.map((sale) => (
+                <div
+                  key={sale._id}
+                  className="rounded-[16px] border border-[#eadcc5] bg-[#fffaf2] p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-black text-[#2a1608]">
+                        {sale.customerName}
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-[#9a6b3e]">
+                        {formatDate(sale.date)}
+                      </p>
+                    </div>
+                    <StatusBadge status={capitalize(sale.paymentStatus)} />
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                    <MobileInfo label="Glasses" value={sale.glasses} />
+                    <MobileInfo label="Price" value={`₹${sale.pricePerGlass}`} />
+                    <MobileInfo label="Total" value={`₹${sale.totalAmount}`} />
+                    <MobileInfo label="Paid" value={`₹${sale.paidAmount}`} />
+                    <MobileInfo label="Extra" value={`₹${sale.extraAmount}`} />
+                    <MobileInfo label="Mode" value={sale.paymentMode} capitalize />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-[16px] bg-[#fff8ea] px-4 py-8 text-center text-sm font-bold text-[#9a6b3e]">
+              No sales found for this date
+            </div>
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[950px] text-left text-sm">
             <thead className="bg-[#fff8ea]">
               <tr>
@@ -332,9 +380,9 @@ export default function SalesPage({ selectedLocation = "all" }) {
       </div>
 
       <Modal open={open} title="Add Sale Entry" onClose={() => setOpen(false)}>
-        <form className="space-y-4">
+        <form className="max-h-[75vh] space-y-3 overflow-y-auto pr-1 sm:space-y-4">
           <select
-            className="input"
+            className="input text-sm"
             name="location"
             value={form.location}
             onChange={handleChange}
@@ -349,7 +397,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
           </select>
 
           <input
-            className="input"
+            className="input text-sm"
             name="date"
             type="date"
             value={form.date}
@@ -358,7 +406,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
           />
 
           <input
-            className="input"
+            className="input text-sm"
             name="customerName"
             value={form.customerName}
             onChange={handleChange}
@@ -367,7 +415,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <input
-              className="input"
+              className="input text-sm"
               name="glasses"
               type="number"
               placeholder="Glasses"
@@ -377,7 +425,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
             />
 
             <input
-              className="input"
+              className="input text-sm"
               name="pricePerGlass"
               type="number"
               placeholder="Price per glass"
@@ -388,7 +436,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
           </div>
 
           <input
-            className="input"
+            className="input text-sm"
             name="paidAmount"
             type="number"
             placeholder="Paid amount"
@@ -398,7 +446,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
           />
 
           <select
-            className="input"
+            className="input text-sm"
             name="paymentMode"
             value={form.paymentMode}
             onChange={handleChange}
@@ -410,21 +458,23 @@ export default function SalesPage({ selectedLocation = "all" }) {
             <option value="none">None</option>
           </select>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <CalcBox title="Total" value={`₹${totalAmount}`} />
             <CalcBox title="Pending" value={`₹${pendingAmount}`} />
             <CalcBox title="Extra" value={`₹${extraAmount}`} />
           </div>
 
-          <div className="rounded-2xl bg-[#fff8ea] p-4">
-            <p className="text-sm font-black text-[#9a6b3e]">
+          <div className="rounded-[16px] bg-[#fff8ea] p-4">
+            <p className="text-xs font-black text-[#9a6b3e] sm:text-sm">
               Payment Status
             </p>
-            <h3 className="mt-1 text-xl font-black">{paymentStatus}</h3>
+            <h3 className="mt-1 text-lg font-black sm:text-xl">
+              {paymentStatus}
+            </h3>
           </div>
 
           <textarea
-            className="input min-h-[100px] resize-none"
+            className="input min-h-[90px] resize-none text-sm sm:min-h-[100px]"
             name="notes"
             value={form.notes}
             onChange={handleChange}
@@ -434,7 +484,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
           <button
             type="button"
             onClick={handleSave}
-            className="w-full rounded-2xl bg-[#2a1608] py-3 font-black text-white"
+            className="w-full rounded-[16px] bg-[#2a1608] py-3 text-sm font-black text-white sm:text-base"
           >
             Save Sale
           </button>
@@ -446,18 +496,39 @@ export default function SalesPage({ selectedLocation = "all" }) {
 
 function SummaryCard({ title, value }) {
   return (
-    <div className="rounded-[28px] bg-white p-5 shadow-sm">
-      <p className="text-sm font-black text-[#9a6b3e]">{title}</p>
-      <h3 className="mt-2 text-2xl font-black sm:text-3xl">{value}</h3>
+    <div className="rounded-[16px] bg-white p-3 shadow-sm sm:p-5">
+      <p className="text-[11px] font-black leading-4 text-[#9a6b3e] sm:text-sm">
+        {title}
+      </p>
+      <h3 className="mt-1 break-words text-lg font-black leading-tight text-[#2a1608] sm:mt-2 sm:text-2xl lg:text-3xl">
+        {value}
+      </h3>
     </div>
   );
 }
 
 function CalcBox({ title, value }) {
   return (
-    <div className="rounded-2xl bg-[#2a1608] p-4 text-white">
-      <p className="text-xs font-bold text-[#f2c078]">{title}</p>
-      <h3 className="mt-1 text-xl font-black">{value}</h3>
+    <div className="rounded-[14px] bg-[#2a1608] p-3 text-white sm:rounded-[16px] sm:p-4">
+      <p className="text-[10px] font-bold text-[#f2c078] sm:text-xs">
+        {title}
+      </p>
+      <h3 className="mt-1 break-words text-sm font-black sm:text-xl">{value}</h3>
+    </div>
+  );
+}
+
+function MobileInfo({ label, value, capitalize = false }) {
+  return (
+    <div className="rounded-[12px] bg-white p-3">
+      <p className="font-bold text-[#9a6b3e]">{label}</p>
+      <p
+        className={`mt-1 break-words font-black text-[#2a1608] ${
+          capitalize ? "capitalize" : ""
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -471,7 +542,7 @@ function StatusBadge({ status }) {
 
   return (
     <span
-      className={`rounded-full px-3 py-1 text-xs font-black ${
+      className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black sm:px-3 sm:text-xs ${
         styles[status] || "bg-gray-100 text-gray-700"
       }`}
     >

@@ -147,6 +147,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
   };
 
   const removeUsedItem = (index) => {
+    if (usedItems.length === 1) return;
     setUsedItems(usedItems.filter((_, i) => i !== index));
   };
 
@@ -235,38 +236,40 @@ export default function ProductionPage({ selectedLocation = "all" }) {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-3 rounded-[28px] bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h2 className="text-2xl font-black">Daily Production</h2>
-          <p className="text-sm font-semibold text-[#9a6b3e]">
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex flex-col gap-4 rounded-[16px] bg-white p-4 shadow-sm sm:p-5 xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-xl font-black leading-tight sm:text-2xl">
+            Daily Production
+          </h2>
+          <p className="mt-1 text-xs font-semibold text-[#9a6b3e] sm:text-sm">
             Date-wise Badam Ragda batch and consumed items
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3 xl:justify-end">
           <button
             onClick={() => setSelectedDate(getToday())}
-            className="rounded-2xl bg-[#fff2d8] px-4 py-3 text-sm font-black text-[#2a1608]"
+            className="rounded-[14px] bg-[#fff2d8] px-3 py-3 text-xs font-black text-[#2a1608] sm:px-4 sm:text-sm"
           >
             Today
           </button>
 
           <button
             onClick={() => setSelectedDate(getYesterday())}
-            className="rounded-2xl bg-[#fff2d8] px-4 py-3 text-sm font-black text-[#2a1608]"
+            className="rounded-[14px] bg-[#fff2d8] px-3 py-3 text-xs font-black text-[#2a1608] sm:px-4 sm:text-sm"
           >
             Yesterday
           </button>
 
-          <div className="flex items-center gap-2 rounded-2xl border border-[#eadcc5] bg-[#fff8ea] px-4 py-3">
-            <CalendarDays size={18} />
+          <div className="col-span-2 flex min-w-0 items-center gap-2 rounded-[14px] border border-[#eadcc5] bg-[#fff8ea] px-3 py-3 sm:col-span-1 sm:px-4">
+            <CalendarDays size={17} className="shrink-0" />
             <input
               type="date"
               value={selectedDate}
               max={getToday()}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-sm font-black outline-none"
+              className="w-full min-w-0 bg-transparent text-xs font-black outline-none sm:text-sm"
             />
           </div>
 
@@ -279,7 +282,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
               }));
               setOpen(true);
             }}
-            className="flex items-center justify-center gap-2 rounded-2xl bg-[#2a1608] px-5 py-3 font-black text-white"
+            className="col-span-2 flex items-center justify-center gap-2 rounded-[14px] bg-[#2a1608] px-4 py-3 text-sm font-black text-white sm:col-span-1 sm:px-5"
           >
             <Plus size={18} />
             Add Production
@@ -287,7 +290,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         <SummaryCard
           title="Selected Production"
           value={loading ? "Loading..." : `${selectedPrepared} Ltr`}
@@ -310,34 +313,36 @@ export default function ProductionPage({ selectedLocation = "all" }) {
         />
       </div>
 
-      <div className="rounded-[28px] bg-[#2a1608] p-5 text-white shadow-sm">
-        <p className="text-sm font-semibold text-[#f2c078]">
+      <div className="rounded-[16px] bg-[#2a1608] p-4 text-white shadow-sm sm:p-5">
+        <p className="text-xs font-semibold text-[#f2c078] sm:text-sm">
           Production Rule
         </p>
-        <h2 className="mt-1 text-2xl font-black">
+        <h2 className="mt-1 text-lg font-black leading-tight sm:text-2xl">
           Production = Stock consume, not new investment
         </h2>
-        <p className="mt-2 text-sm text-white/70">
+        <p className="mt-2 text-xs leading-relaxed text-white/70 sm:text-sm">
           Jo raw material production me use hoga, backend me stock reduce hoga
           and making cost calculate hogi.
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-[28px] bg-white shadow-sm">
-        <div className="flex items-center gap-3 border-b border-[#eadcc5] p-5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#fff2d8]">
+      <div className="overflow-hidden rounded-[16px] bg-white shadow-sm">
+        <div className="flex items-start gap-3 border-b border-[#eadcc5] p-4 sm:items-center sm:p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#fff2d8]">
             <Factory size={18} />
           </div>
-          <div>
-            <h3 className="text-xl font-black">Production History</h3>
-            <p className="text-sm font-semibold text-[#9a6b3e]">
+          <div className="min-w-0">
+            <h3 className="text-lg font-black leading-tight sm:text-xl">
+              Production History
+            </h3>
+            <p className="mt-1 text-xs font-semibold text-[#9a6b3e] sm:text-sm">
               Showing production for {selectedDate}
             </p>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[850px] text-left text-sm">
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-[#fff8ea]">
               <tr>
                 <th className="px-5 py-4">Date</th>
@@ -376,8 +381,8 @@ export default function ProductionPage({ selectedLocation = "all" }) {
                         "en-IN"
                       )}
                     </td>
-                    <td className="px-5 py-4 font-semibold">
-                      {item.notes || "-"}
+                    <td className="max-w-[260px] px-5 py-4 font-semibold">
+                      <span className="line-clamp-2">{item.notes || "-"}</span>
                     </td>
                   </tr>
                 ))
@@ -394,6 +399,68 @@ export default function ProductionPage({ selectedLocation = "all" }) {
             </tbody>
           </table>
         </div>
+
+        <div className="space-y-3 p-4 md:hidden">
+          {loading ? (
+            <div className="rounded-[16px] bg-[#fff8ea] p-5 text-center text-sm font-bold text-[#9a6b3e]">
+              Loading production...
+            </div>
+          ) : productions.length > 0 ? (
+            productions.map((item) => (
+              <div
+                key={item._id}
+                className="rounded-[16px] border border-[#eadcc5] bg-[#fffaf2] p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold text-[#9a6b3e]">Date</p>
+                    <h4 className="text-sm font-black">
+                      {formatDate(item.date)}
+                    </h4>
+                  </div>
+
+                  <div className="rounded-full bg-[#2a1608] px-3 py-1 text-xs font-black text-white">
+                    {item.totalPreparedLiters} ltr
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-[14px] bg-white p-3">
+                    <p className="text-[11px] font-bold text-[#9a6b3e]">
+                      Glasses
+                    </p>
+                    <p className="mt-1 text-sm font-black">
+                      {item.estimatedGlasses}
+                    </p>
+                  </div>
+
+                  <div className="rounded-[14px] bg-white p-3">
+                    <p className="text-[11px] font-bold text-[#9a6b3e]">
+                      Making Cost
+                    </p>
+                    <p className="mt-1 text-sm font-black">
+                      ₹
+                      {Number(item.totalMakingCost || 0).toLocaleString(
+                        "en-IN"
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-[14px] bg-white p-3">
+                  <p className="text-[11px] font-bold text-[#9a6b3e]">Notes</p>
+                  <p className="mt-1 break-words text-sm font-semibold">
+                    {item.notes || "-"}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-[16px] bg-[#fff8ea] p-5 text-center text-sm font-bold text-[#9a6b3e]">
+              No production found for this date
+            </div>
+          )}
+        </div>
       </div>
 
       <Modal
@@ -403,7 +470,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
       >
         <form className="space-y-4">
           <select
-            className="input"
+            className="input text-sm"
             name="location"
             value={form.location}
             onChange={handleFormChange}
@@ -418,7 +485,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
           </select>
 
           <input
-            className="input"
+            className="input text-sm"
             name="date"
             type="date"
             value={form.date}
@@ -428,7 +495,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <input
-              className="input"
+              className="input text-sm"
               name="totalPreparedLiters"
               value={form.totalPreparedLiters}
               onChange={handleFormChange}
@@ -437,7 +504,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
             />
 
             <input
-              className="input"
+              className="input text-sm"
               name="estimatedGlasses"
               value={form.estimatedGlasses}
               onChange={handleFormChange}
@@ -446,14 +513,14 @@ export default function ProductionPage({ selectedLocation = "all" }) {
             />
           </div>
 
-          <div className="rounded-2xl bg-[#fff8ea] p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="rounded-[16px] bg-[#fff8ea] p-3 sm:p-4">
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="font-black">Items Used</h3>
 
               <button
                 type="button"
                 onClick={addUsedItem}
-                className="rounded-xl bg-[#2a1608] px-3 py-2 text-xs font-black text-white"
+                className="w-full rounded-xl bg-[#2a1608] px-3 py-2 text-xs font-black text-white sm:w-auto"
               >
                 Add Item
               </button>
@@ -463,11 +530,11 @@ export default function ProductionPage({ selectedLocation = "all" }) {
               {usedItems.map((used, index) => (
                 <div
                   key={index}
-                  className="grid gap-3 rounded-2xl bg-white p-3 sm:grid-cols-[1fr_120px_40px]"
+                  className="grid gap-3 rounded-[16px] bg-white p-3 lg:grid-cols-[1fr_120px_48px]"
                 >
                   <div className="grid gap-3 sm:grid-cols-2">
                     <select
-                      className="input"
+                      className="input min-w-0 text-sm"
                       value={used.item}
                       onChange={(e) =>
                         updateUsedItem(index, "item", e.target.value)
@@ -482,7 +549,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
                     </select>
 
                     <input
-                      className="input"
+                      className="input text-sm"
                       type="number"
                       placeholder={`Qty ${used.unit ? `(${used.unit})` : ""}`}
                       value={used.quantityUsed}
@@ -492,16 +559,22 @@ export default function ProductionPage({ selectedLocation = "all" }) {
                     />
                   </div>
 
-                  <div className="rounded-2xl bg-[#fff8ea] px-3 py-3 text-sm font-black">
-                    ₹
-                    {Number(used.quantityUsed || 0) *
-                      Number(used.pricePerUnit || 0)}
+                  <div className="flex items-center justify-between rounded-[16px] bg-[#fff8ea] px-3 py-3 text-sm font-black lg:block">
+                    <span className="text-xs text-[#9a6b3e] lg:hidden">
+                      Cost
+                    </span>
+                    <span>
+                      ₹
+                      {Number(used.quantityUsed || 0) *
+                        Number(used.pricePerUnit || 0)}
+                    </span>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => removeUsedItem(index)}
-                    className="flex h-12 items-center justify-center rounded-2xl bg-red-100 text-red-700"
+                    disabled={usedItems.length === 1}
+                    className="flex h-11 w-full items-center justify-center rounded-[16px] bg-red-100 text-red-700 disabled:cursor-not-allowed disabled:opacity-50 lg:h-12"
                   >
                     <Trash2 size={18} />
                   </button>
@@ -510,17 +583,17 @@ export default function ProductionPage({ selectedLocation = "all" }) {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-[#2a1608] p-4 text-white">
-            <p className="text-sm font-semibold text-[#f2c078]">
+          <div className="rounded-[16px] bg-[#2a1608] p-4 text-white">
+            <p className="text-xs font-semibold text-[#f2c078] sm:text-sm">
               Total Making Cost
             </p>
-            <h3 className="text-2xl font-black">
+            <h3 className="text-xl font-black sm:text-2xl">
               ₹{totalMakingCost.toLocaleString("en-IN")}
             </h3>
           </div>
 
           <textarea
-            className="input min-h-[100px] resize-none"
+            className="input min-h-[100px] resize-none text-sm"
             name="notes"
             value={form.notes}
             onChange={handleFormChange}
@@ -530,7 +603,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
           <button
             type="button"
             onClick={handleSave}
-            className="w-full rounded-2xl bg-[#2a1608] py-3 font-black text-white"
+            className="w-full rounded-[16px] bg-[#2a1608] py-3 text-sm font-black text-white sm:text-base"
           >
             Save Production
           </button>
@@ -542,9 +615,11 @@ export default function ProductionPage({ selectedLocation = "all" }) {
 
 function SummaryCard({ title, value }) {
   return (
-    <div className="rounded-[28px] bg-white p-5 shadow-sm">
-      <p className="text-sm font-black text-[#9a6b3e]">{title}</p>
-      <h3 className="mt-2 text-2xl font-black sm:text-3xl">{value}</h3>
+    <div className="rounded-[16px] bg-white p-4 shadow-sm sm:p-5">
+      <p className="text-xs font-black text-[#9a6b3e] sm:text-sm">{title}</p>
+      <h3 className="mt-2 break-words text-xl font-black sm:text-2xl xl:text-3xl">
+        {value}
+      </h3>
     </div>
   );
 }
