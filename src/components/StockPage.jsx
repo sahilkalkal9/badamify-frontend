@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Boxes, ShoppingCart } from "lucide-react";
+import { Plus, Boxes, ShoppingCart, Pencil, Trash2 } from "lucide-react";
 import Modal from "./Modal";
 import api from "@/utils/api";
 
@@ -18,13 +18,20 @@ const formatDate = (date) => {
   });
 };
 
+const toDateInput = (date) => {
+  if (!date) return "";
+  return new Date(date).toISOString().split("T")[0];
+};
+
 export default function StockPage({ selectedLocation = "all" }) {
   const [open, setOpen] = useState(false);
+  const [editingPurchase, setEditingPurchase] = useState(null);
   const [recipeItems, setRecipeItems] = useState([]);
   const [stockPurchases, setStockPurchases] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
 
   const [form, setForm] = useState({
     location: "",
@@ -40,15 +47,22 @@ export default function StockPage({ selectedLocation = "all" }) {
 
   const getLocationName = (locationValue) => {
     if (locationValue?.name) return locationValue.name;
-
     const locationId =
       typeof locationValue === "object" ? locationValue?._id : locationValue;
-
     const found = locations.find((loc) => loc._id === locationId);
     return found?.name || "-";
   };
 
+  const getLocationId = (locationValue) => {
+    return typeof locationValue === "object" ? locationValue?._id : locationValue;
+  };
+
+  const getItemId = (itemValue) => {
+    return typeof itemValue === "object" ? itemValue?._id : itemValue;
+  };
+
   const resetForm = () => {
+    setEditingPurchase(null);
     setForm({
       location: selectedLocation !== "all" ? selectedLocation : "",
       item: "",
@@ -147,6 +161,7 @@ export default function StockPage({ selectedLocation = "all" }) {
 
   const purchaseRows = stockPurchases.map((purchase) => ({
     id: purchase._id,
+    raw: purchase,
     item: purchase.itemName,
     location: getLocationName(purchase.location),
     quantity: `${Number(purchase.quantity || 0).toLocaleString("en-IN")} ${
@@ -216,6 +231,33 @@ export default function StockPage({ selectedLocation = "all" }) {
     setOpen(true);
   };
 
+  const handleEdit = (purchase) => {
+    const total = Number(purchase.totalPrice || 0);
+    const paid = Number(purchase.paidAmount || 0);
+
+    let paymentStatus = purchase.paymentStatus || "paid";
+
+    if (!purchase.paymentStatus) {
+      if (paid <= 0) paymentStatus = "unpaid";
+      else if (paid >= total) paymentStatus = "paid";
+      else paymentStatus = "partial";
+    }
+
+    setEditingPurchase(purchase);
+    setForm({
+      location: getLocationId(purchase.location) || "",
+      item: getItemId(purchase.item) || purchase.itemId || "",
+      quantity: purchase.quantity || "",
+      pricePerUnit: purchase.pricePerUnit || "",
+      vendorName: purchase.vendorName || "",
+      paymentStatus,
+      paidAmount: purchase.paidAmount || "",
+      purchaseDate: toDateInput(purchase.purchaseDate),
+      notes: purchase.notes || "",
+    });
+    setOpen(true);
+  };
+
   const handleCloseModal = () => {
     if (saving) return;
     setOpen(false);
@@ -251,7 +293,7 @@ export default function StockPage({ selectedLocation = "all" }) {
 
       setSaving(true);
 
-      await api.post("/stock-purchases", {
+      const payload = {
         location: form.location,
         item: form.item,
         quantity: Number(form.quantity || 0),
@@ -266,16 +308,41 @@ export default function StockPage({ selectedLocation = "all" }) {
             : Number(form.paidAmount || 0),
         purchaseDate: form.purchaseDate || new Date().toISOString(),
         notes: form.notes.trim(),
-      });
+      };
+
+      if (editingPurchase?._id) {
+        await api.put(`/stock-purchases/${editingPurchase._id}`, payload);
+      } else {
+        await api.post("/stock-purchases", payload);
+      }
 
       resetForm();
       setOpen(false);
       fetchStockData();
     } catch (error) {
-      console.error("Create stock purchase error:", error);
+      console.error("Save stock purchase error:", error);
       alert(error?.response?.data?.message || "Failed to save stock purchase");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (purchase) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete "${purchase.itemName || "this stock purchase"}"?`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      setDeletingId(purchase._id);
+      await api.delete(`/stock-purchases/${purchase._id}`);
+      fetchStockData();
+    } catch (error) {
+      console.error("Delete stock purchase error:", error);
+      alert(error?.response?.data?.message || "Failed to delete stock purchase");
+    } finally {
+      setDeletingId("");
     }
   };
 
@@ -342,117 +409,174 @@ export default function StockPage({ selectedLocation = "all" }) {
         type="purchase"
         data={purchaseRows}
         loading={loading}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        deletingId={deletingId}
       />
 
-      <Modal open={open} title="Add New Stock" onClose={handleCloseModal}>
-        <form className="space-y-3">
-          <select
-            className="input"
-            name="location"
-            value={form.location}
-            onChange={handleChange}
-            disabled={selectedLocation !== "all" || saving}
-          >
-            <option value="">Select location</option>
-            {locations.map((location) => (
-              <option key={location._id} value={location._id}>
-                {location.name}
-              </option>
-            ))}
-          </select>
+      <Modal
+        open={open}
+        title={editingPurchase ? "Edit Stock Purchase" : "Add New Stock"}
+        onClose={handleCloseModal}
+      >
+        <form className="space-y-4">
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Location *
+            </label>
+            <select
+              className="input"
+              name="location"
+              value={form.location}
+              onChange={handleChange}
+              disabled={selectedLocation !== "all" || saving}
+            >
+              <option value="">Select location</option>
+              {locations.map((location) => (
+                <option key={location._id} value={location._id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            className="input"
-            name="item"
-            value={form.item}
-            onChange={handleChange}
-            disabled={saving}
-          >
-            <option value="">Select item</option>
-            {filteredItemsForModal.map((item) => (
-              <option key={item._id} value={item._id}>
-                {item.name} - {item.unit}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Item *
+            </label>
+            <select
+              className="input"
+              name="item"
+              value={form.item}
+              onChange={handleChange}
+              disabled={saving}
+            >
+              <option value="">Select item</option>
+              {filteredItemsForModal.map((item) => (
+                <option key={item._id} value={item._id}>
+                  {item.name} - {item.unit}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <input
-            className="input"
-            name="quantity"
-            value={form.quantity}
-            onChange={handleChange}
-            disabled={saving}
-            type="number"
-            placeholder="Quantity purchased"
-          />
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Quantity Purchased *
+            </label>
+            <input
+              className="input"
+              name="quantity"
+              value={form.quantity}
+              onChange={handleChange}
+              disabled={saving}
+              type="number"
+              placeholder="Quantity purchased"
+            />
+          </div>
 
-          <select className="input" value={selectedItem?.unit || ""} disabled>
-            <option value="">Unit auto selected</option>
-            <option value="kg">Kg</option>
-            <option value="gm">Gram</option>
-            <option value="ltr">Liter</option>
-            <option value="ml">ML</option>
-            <option value="pcs">Pieces</option>
-          </select>
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Unit
+            </label>
+            <select className="input" value={selectedItem?.unit || ""} disabled>
+              <option value="">Unit auto selected</option>
+              <option value="kg">Kg</option>
+              <option value="gm">Gram</option>
+              <option value="ltr">Liter</option>
+              <option value="ml">ML</option>
+              <option value="pcs">Pieces</option>
+            </select>
+          </div>
 
-          <input
-            className="input"
-            name="pricePerUnit"
-            value={form.pricePerUnit}
-            onChange={handleChange}
-            disabled={saving}
-            type="number"
-            placeholder="Price per unit"
-          />
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Price Per Unit *
+            </label>
+            <input
+              className="input"
+              name="pricePerUnit"
+              value={form.pricePerUnit}
+              onChange={handleChange}
+              disabled={saving}
+              type="number"
+              placeholder="Price per unit"
+            />
+          </div>
 
-          <input
-            className="input"
-            name="vendorName"
-            value={form.vendorName}
-            onChange={handleChange}
-            disabled={saving}
-            placeholder="Vendor name"
-          />
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Vendor Name
+            </label>
+            <input
+              className="input"
+              name="vendorName"
+              value={form.vendorName}
+              onChange={handleChange}
+              disabled={saving}
+              placeholder="Vendor name"
+            />
+          </div>
 
-          <select
-            className="input"
-            name="paymentStatus"
-            value={form.paymentStatus}
-            onChange={handleChange}
-            disabled={saving}
-          >
-            <option value="paid">Paid</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="partial">Partial</option>
-          </select>
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Payment Status
+            </label>
+            <select
+              className="input"
+              name="paymentStatus"
+              value={form.paymentStatus}
+              onChange={handleChange}
+              disabled={saving}
+            >
+              <option value="paid">Paid</option>
+              <option value="unpaid">Unpaid</option>
+              <option value="partial">Partial</option>
+            </select>
+          </div>
 
-          <input
-            className="input"
-            name="paidAmount"
-            value={form.paymentStatus === "paid" ? totalAmount : form.paidAmount}
-            onChange={handleChange}
-            type="number"
-            disabled={form.paymentStatus === "paid" || saving}
-            placeholder="Paid amount"
-          />
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Paid Amount
+            </label>
+            <input
+              className="input"
+              name="paidAmount"
+              value={form.paymentStatus === "paid" ? totalAmount : form.paidAmount}
+              onChange={handleChange}
+              type="number"
+              disabled={form.paymentStatus === "paid" || saving}
+              placeholder="Paid amount"
+            />
+          </div>
 
-          <input
-            className="input"
-            name="purchaseDate"
-            value={form.purchaseDate}
-            onChange={handleChange}
-            disabled={saving}
-            type="date"
-          />
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Purchase Date
+            </label>
+            <input
+              className="input"
+              name="purchaseDate"
+              value={form.purchaseDate}
+              onChange={handleChange}
+              disabled={saving}
+              type="date"
+            />
+          </div>
 
-          <textarea
-            className="input min-h-[100px] resize-none"
-            name="notes"
-            value={form.notes}
-            onChange={handleChange}
-            disabled={saving}
-            placeholder="Notes"
-          />
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Notes
+            </label>
+            <textarea
+              className="input min-h-[100px] resize-none"
+              name="notes"
+              value={form.notes}
+              onChange={handleChange}
+              disabled={saving}
+              placeholder="Notes"
+            />
+          </div>
 
           <div className="rounded-[16px] bg-[#fff8ea] p-4 text-sm font-bold text-[#9a6b3e]">
             Total amount: {formatMoney(totalAmount)}
@@ -464,7 +588,13 @@ export default function StockPage({ selectedLocation = "all" }) {
             disabled={saving}
             className="w-full rounded-[16px] bg-[#2a1608] py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? "Saving..." : "Save Stock Purchase"}
+            {saving
+              ? editingPurchase
+                ? "Updating..."
+                : "Saving..."
+              : editingPurchase
+              ? "Update Stock Purchase"
+              : "Save Stock Purchase"}
           </button>
         </form>
       </Modal>
@@ -486,7 +616,15 @@ function SummaryCard({ title, value }) {
   );
 }
 
-function StockTable({ title, type, data, loading }) {
+function StockTable({
+  title,
+  type,
+  data,
+  loading,
+  onEdit,
+  onDelete,
+  deletingId,
+}) {
   const columns =
     type === "current"
       ? ["Item", "Location", "Current Stock", "Price / Unit", "Stock Value", "Alert"]
@@ -499,6 +637,7 @@ function StockTable({ title, type, data, loading }) {
           "Paid",
           "Vendor",
           "Date",
+          "Actions",
         ];
 
   return (
@@ -559,14 +698,36 @@ function StockTable({ title, type, data, loading }) {
                   </div>
                 </div>
               ) : (
-                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                  <InfoBox title="Quantity" value={row.quantity} />
-                  <InfoBox title="Price / Unit" value={row.pricePerUnit} />
-                  <InfoBox title="Total" value={row.total} />
-                  <InfoBox title="Paid" value={row.paid} />
-                  <InfoBox title="Vendor" value={row.vendor} />
-                  <InfoBox title="Date" value={row.date} />
-                </div>
+                <>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <InfoBox title="Quantity" value={row.quantity} />
+                    <InfoBox title="Price / Unit" value={row.pricePerUnit} />
+                    <InfoBox title="Total" value={row.total} />
+                    <InfoBox title="Paid" value={row.paid} />
+                    <InfoBox title="Vendor" value={row.vendor} />
+                    <InfoBox title="Date" value={row.date} />
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => onEdit?.(row.raw)}
+                      disabled={deletingId === row.id}
+                      className="flex items-center justify-center gap-2 rounded-[16px] bg-[#fff2d8] px-4 py-3 text-sm font-black text-[#2a1608] disabled:opacity-60"
+                    >
+                      <Pencil size={16} />
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => onDelete?.(row.raw)}
+                      disabled={deletingId === row.id}
+                      className="flex items-center justify-center gap-2 rounded-[16px] bg-red-50 px-4 py-3 text-sm font-black text-red-600 disabled:opacity-60"
+                    >
+                      <Trash2 size={16} />
+                      {deletingId === row.id ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           ))
@@ -578,11 +739,16 @@ function StockTable({ title, type, data, loading }) {
       </div>
 
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[980px] text-left text-sm">
+        <table className="w-full min-w-[1080px] text-left text-sm">
           <thead className="bg-[#fff8ea]">
             <tr>
               {columns.map((col) => (
-                <th key={col} className="px-5 py-4">
+                <th
+                  key={col}
+                  className={`px-5 py-4 ${
+                    col === "Actions" ? "text-right" : ""
+                  }`}
+                >
                   {col}
                 </th>
               ))}
@@ -635,6 +801,27 @@ function StockTable({ title, type, data, loading }) {
                       <td className="px-5 py-4 font-semibold">{row.paid}</td>
                       <td className="px-5 py-4 font-semibold">{row.vendor}</td>
                       <td className="px-5 py-4 font-semibold">{row.date}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => onEdit?.(row.raw)}
+                            disabled={deletingId === row.id}
+                            className="rounded-[12px] bg-[#fff2d8] p-2 text-[#2a1608] disabled:opacity-60"
+                            title="Edit"
+                          >
+                            <Pencil size={16} />
+                          </button>
+
+                          <button
+                            onClick={() => onDelete?.(row.raw)}
+                            disabled={deletingId === row.id}
+                            className="rounded-[12px] bg-red-50 p-2 text-red-600 disabled:opacity-60"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
                     </>
                   )}
                 </tr>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Factory, Trash2, CalendarDays } from "lucide-react";
+import { Plus, Factory, Trash2, CalendarDays, Pencil } from "lucide-react";
 import Modal from "./Modal";
 import api from "@/utils/api";
 
@@ -23,10 +23,18 @@ function formatDate(date) {
   });
 }
 
+function toDateInput(date) {
+  if (!date) return getToday();
+  return new Date(date).toISOString().split("T")[0];
+}
+
 export default function ProductionPage({ selectedLocation = "all" }) {
   const [open, setOpen] = useState(false);
+  const [editingProduction, setEditingProduction] = useState(null);
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
 
   const [productions, setProductions] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -43,6 +51,26 @@ export default function ProductionPage({ selectedLocation = "all" }) {
   const [usedItems, setUsedItems] = useState([
     { item: "", quantityUsed: "", unit: "", pricePerUnit: 0 },
   ]);
+
+  const resetForm = () => {
+    setEditingProduction(null);
+    setForm({
+      location: selectedLocation !== "all" ? selectedLocation : "",
+      date: selectedDate,
+      totalPreparedLiters: "",
+      estimatedGlasses: "",
+      notes: "",
+    });
+    setUsedItems([{ item: "", quantityUsed: "", unit: "", pricePerUnit: 0 }]);
+  };
+
+  const getLocationId = (value) => {
+    return typeof value === "object" ? value?._id : value;
+  };
+
+  const getItemId = (value) => {
+    return typeof value === "object" ? value?._id : value;
+  };
 
   const fetchLocations = async () => {
     try {
@@ -193,7 +221,58 @@ export default function ProductionPage({ selectedLocation = "all" }) {
     }));
   };
 
+  const handleOpenAdd = () => {
+    setEditingProduction(null);
+    setForm({
+      location: selectedLocation !== "all" ? selectedLocation : "",
+      date: selectedDate,
+      totalPreparedLiters: "",
+      estimatedGlasses: "",
+      notes: "",
+    });
+    setUsedItems([{ item: "", quantityUsed: "", unit: "", pricePerUnit: 0 }]);
+    setOpen(true);
+  };
+
+  const handleEdit = (production) => {
+    setEditingProduction(production);
+
+    setForm({
+      location: getLocationId(production.location) || "",
+      date: toDateInput(production.date),
+      totalPreparedLiters: production.totalPreparedLiters || "",
+      estimatedGlasses: production.estimatedGlasses || "",
+      notes: production.notes || "",
+    });
+
+    const mappedItems =
+      production.itemsUsed?.length > 0
+        ? production.itemsUsed.map((used) => {
+            const itemId = getItemId(used.item);
+            const selected = recipeItems.find((item) => item._id === itemId);
+
+            return {
+              item: itemId || "",
+              quantityUsed: used.quantityUsed || "",
+              unit: used.unit || selected?.unit || "",
+              pricePerUnit: used.pricePerUnit || selected?.pricePerUnit || 0,
+            };
+          })
+        : [{ item: "", quantityUsed: "", unit: "", pricePerUnit: 0 }];
+
+    setUsedItems(mappedItems);
+    setOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    if (saving) return;
+    setOpen(false);
+    resetForm();
+  };
+
   const handleSave = async () => {
+    if (saving) return;
+
     try {
       if (!form.location) return alert("Location is required");
       if (!form.date) return alert("Date is required");
@@ -205,7 +284,9 @@ export default function ProductionPage({ selectedLocation = "all" }) {
 
       if (!validItems.length) return alert("At least one used item is required");
 
-      await api.post("/daily-production", {
+      setSaving(true);
+
+      const payload = {
         location: form.location,
         date: form.date,
         totalPreparedLiters: Number(form.totalPreparedLiters || 0),
@@ -215,23 +296,45 @@ export default function ProductionPage({ selectedLocation = "all" }) {
           quantityUsed: Number(item.quantityUsed || 0),
         })),
         notes: form.notes,
-      });
+      };
 
-      setForm({
-        location: selectedLocation !== "all" ? selectedLocation : "",
-        date: selectedDate,
-        totalPreparedLiters: "",
-        estimatedGlasses: "",
-        notes: "",
-      });
+      if (editingProduction?._id) {
+        await api.put(`/daily-production/${editingProduction._id}`, payload);
+      } else {
+        await api.post("/daily-production", payload);
+      }
 
-      setUsedItems([{ item: "", quantityUsed: "", unit: "", pricePerUnit: 0 }]);
+      resetForm();
       setOpen(false);
       fetchProductions();
       fetchRecipeItems();
     } catch (error) {
-      console.error("Create production error:", error);
+      console.error("Save production error:", error);
       alert(error?.response?.data?.message || "Failed to save production");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (production) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete production of ${formatDate(
+        production.date
+      )}?`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      setDeletingId(production._id);
+      await api.delete(`/daily-production/${production._id}`);
+      fetchProductions();
+      fetchRecipeItems();
+    } catch (error) {
+      console.error("Delete production error:", error);
+      alert(error?.response?.data?.message || "Failed to delete production");
+    } finally {
+      setDeletingId("");
     }
   };
 
@@ -274,14 +377,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
           </div>
 
           <button
-            onClick={() => {
-              setForm((prev) => ({
-                ...prev,
-                location: selectedLocation !== "all" ? selectedLocation : "",
-                date: selectedDate,
-              }));
-              setOpen(true);
-            }}
+            onClick={handleOpenAdd}
             className="col-span-2 flex items-center justify-center gap-2 rounded-[14px] bg-[#2a1608] px-4 py-3 text-sm font-black text-white sm:col-span-1 sm:px-5"
           >
             <Plus size={18} />
@@ -342,7 +438,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
         </div>
 
         <div className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="bg-[#fff8ea]">
               <tr>
                 <th className="px-5 py-4">Date</th>
@@ -350,6 +446,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
                 <th className="px-5 py-4">Estimated Glasses</th>
                 <th className="px-5 py-4">Making Cost</th>
                 <th className="px-5 py-4">Notes</th>
+                <th className="px-5 py-4 text-right">Actions</th>
               </tr>
             </thead>
 
@@ -357,7 +454,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-5 py-10 text-center font-bold text-[#9a6b3e]"
                   >
                     Loading production...
@@ -384,12 +481,33 @@ export default function ProductionPage({ selectedLocation = "all" }) {
                     <td className="max-w-[260px] px-5 py-4 font-semibold">
                       <span className="line-clamp-2">{item.notes || "-"}</span>
                     </td>
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(item)}
+                          disabled={deletingId === item._id}
+                          className="rounded-[12px] bg-[#fff2d8] p-2 text-[#2a1608] disabled:opacity-60"
+                          title="Edit"
+                        >
+                          <Pencil size={16} />
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(item)}
+                          disabled={deletingId === item._id}
+                          className="rounded-[12px] bg-red-50 p-2 text-red-600 disabled:opacity-60"
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-5 py-10 text-center font-bold text-[#9a6b3e]"
                   >
                     No production found for this date
@@ -453,6 +571,26 @@ export default function ProductionPage({ selectedLocation = "all" }) {
                     {item.notes || "-"}
                   </p>
                 </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => handleEdit(item)}
+                    disabled={deletingId === item._id}
+                    className="flex items-center justify-center gap-2 rounded-[14px] bg-[#fff2d8] px-4 py-3 text-sm font-black text-[#2a1608] disabled:opacity-60"
+                  >
+                    <Pencil size={16} />
+                    Edit
+                  </button>
+
+                  <button
+                    onClick={() => handleDelete(item)}
+                    disabled={deletingId === item._id}
+                    className="flex items-center justify-center gap-2 rounded-[14px] bg-red-50 px-4 py-3 text-sm font-black text-red-600 disabled:opacity-60"
+                  >
+                    <Trash2 size={16} />
+                    {deletingId === item._id ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
               </div>
             ))
           ) : (
@@ -465,62 +603,86 @@ export default function ProductionPage({ selectedLocation = "all" }) {
 
       <Modal
         open={open}
-        title="Add Daily Production"
-        onClose={() => setOpen(false)}
+        title={editingProduction ? "Edit Daily Production" : "Add Daily Production"}
+        onClose={handleCloseModal}
       >
         <form className="space-y-4">
-          <select
-            className="input text-sm"
-            name="location"
-            value={form.location}
-            onChange={handleFormChange}
-            disabled={selectedLocation !== "all"}
-          >
-            <option value="">Select location</option>
-            {locations.map((location) => (
-              <option key={location._id} value={location._id}>
-                {location.name}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Location *
+            </label>
+            <select
+              className="input text-sm"
+              name="location"
+              value={form.location}
+              onChange={handleFormChange}
+              disabled={selectedLocation !== "all" || saving}
+            >
+              <option value="">Select location</option>
+              {locations.map((location) => (
+                <option key={location._id} value={location._id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <input
-            className="input text-sm"
-            name="date"
-            type="date"
-            value={form.date}
-            max={getToday()}
-            onChange={handleFormChange}
-          />
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Date *
+            </label>
+            <input
+              className="input text-sm"
+              name="date"
+              type="date"
+              value={form.date}
+              max={getToday()}
+              onChange={handleFormChange}
+              disabled={saving}
+            />
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <input
-              className="input text-sm"
-              name="totalPreparedLiters"
-              value={form.totalPreparedLiters}
-              onChange={handleFormChange}
-              type="number"
-              placeholder="Total prepared liters"
-            />
+            <div>
+              <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+                Total Prepared Liters *
+              </label>
+              <input
+                className="input text-sm"
+                name="totalPreparedLiters"
+                value={form.totalPreparedLiters}
+                onChange={handleFormChange}
+                disabled={saving}
+                type="number"
+                placeholder="Total prepared liters"
+              />
+            </div>
 
-            <input
-              className="input text-sm"
-              name="estimatedGlasses"
-              value={form.estimatedGlasses}
-              onChange={handleFormChange}
-              type="number"
-              placeholder="Estimated glasses"
-            />
+            <div>
+              <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+                Estimated Glasses
+              </label>
+              <input
+                className="input text-sm"
+                name="estimatedGlasses"
+                value={form.estimatedGlasses}
+                onChange={handleFormChange}
+                disabled={saving}
+                type="number"
+                placeholder="Estimated glasses"
+              />
+            </div>
           </div>
 
           <div className="rounded-[16px] bg-[#fff8ea] p-3 sm:p-4">
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="font-black">Items Used</h3>
+              <h3 className="font-black">Items Used *</h3>
 
               <button
                 type="button"
                 onClick={addUsedItem}
-                className="w-full rounded-xl bg-[#2a1608] px-3 py-2 text-xs font-black text-white sm:w-auto"
+                disabled={saving}
+                className="w-full rounded-xl bg-[#2a1608] px-3 py-2 text-xs font-black text-white disabled:opacity-60 sm:w-auto"
               >
                 Add Item
               </button>
@@ -536,6 +698,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
                     <select
                       className="input min-w-0 text-sm"
                       value={used.item}
+                      disabled={saving}
                       onChange={(e) =>
                         updateUsedItem(index, "item", e.target.value)
                       }
@@ -551,6 +714,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
                     <input
                       className="input text-sm"
                       type="number"
+                      disabled={saving}
                       placeholder={`Qty ${used.unit ? `(${used.unit})` : ""}`}
                       value={used.quantityUsed}
                       onChange={(e) =>
@@ -573,7 +737,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
                   <button
                     type="button"
                     onClick={() => removeUsedItem(index)}
-                    disabled={usedItems.length === 1}
+                    disabled={usedItems.length === 1 || saving}
                     className="flex h-11 w-full items-center justify-center rounded-[16px] bg-red-100 text-red-700 disabled:cursor-not-allowed disabled:opacity-50 lg:h-12"
                   >
                     <Trash2 size={18} />
@@ -592,20 +756,33 @@ export default function ProductionPage({ selectedLocation = "all" }) {
             </h3>
           </div>
 
-          <textarea
-            className="input min-h-[100px] resize-none text-sm"
-            name="notes"
-            value={form.notes}
-            onChange={handleFormChange}
-            placeholder="Notes"
-          />
+          <div>
+            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
+              Notes
+            </label>
+            <textarea
+              className="input min-h-[100px] resize-none text-sm"
+              name="notes"
+              value={form.notes}
+              onChange={handleFormChange}
+              disabled={saving}
+              placeholder="Notes"
+            />
+          </div>
 
           <button
             type="button"
             onClick={handleSave}
-            className="w-full rounded-[16px] bg-[#2a1608] py-3 text-sm font-black text-white sm:text-base"
+            disabled={saving}
+            className="w-full rounded-[16px] bg-[#2a1608] py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60 sm:text-base"
           >
-            Save Production
+            {saving
+              ? editingProduction
+                ? "Updating..."
+                : "Saving..."
+              : editingProduction
+              ? "Update Production"
+              : "Save Production"}
           </button>
         </form>
       </Modal>

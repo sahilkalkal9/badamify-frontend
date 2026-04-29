@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Package } from "lucide-react";
+import { Plus, Package, Pencil, Trash2 } from "lucide-react";
 import Modal from "./Modal";
 import api from "@/utils/api";
 
@@ -19,12 +19,19 @@ const formatDate = (date) => {
   });
 };
 
+const toDateInput = (date) => {
+  if (!date) return "";
+  return new Date(date).toISOString().split("T")[0];
+};
+
 export default function SetupStuffPage({ selectedLocation = "all" }) {
   const [open, setOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [setupItems, setSetupItems] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
 
   const [form, setForm] = useState({
     location: "",
@@ -37,6 +44,7 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
   });
 
   const resetForm = () => {
+    setEditingItem(null);
     setForm({
       location: selectedLocation !== "all" ? selectedLocation : "",
       name: "",
@@ -102,6 +110,10 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
     return location?.name || "-";
   };
 
+  const getLocationId = (item) => {
+    return item.location?._id || item.location || "";
+  };
+
   const handleChange = (e) => {
     setForm((prev) => ({
       ...prev,
@@ -111,6 +123,20 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
 
   const handleOpenModal = () => {
     resetForm();
+    setOpen(true);
+  };
+
+  const handleEdit = (item) => {
+    setEditingItem(item);
+    setForm({
+      location: getLocationId(item),
+      name: item.name || "",
+      category: item.category || "",
+      quantity: item.quantity || "",
+      pricePerItem: item.pricePerItem || "",
+      purchaseDate: toDateInput(item.purchaseDate),
+      notes: item.notes || "",
+    });
     setOpen(true);
   };
 
@@ -138,7 +164,7 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
 
       setSaving(true);
 
-      await api.post("/setup-stuff", {
+      const payload = {
         location: form.location,
         name: form.name.trim(),
         category: form.category,
@@ -146,16 +172,41 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
         pricePerItem: Number(form.pricePerItem || 0),
         purchaseDate: form.purchaseDate || new Date().toISOString(),
         notes: form.notes.trim(),
-      });
+      };
+
+      if (editingItem?._id) {
+        await api.put(`/setup-stuff/${editingItem._id}`, payload);
+      } else {
+        await api.post("/setup-stuff", payload);
+      }
 
       resetForm();
       setOpen(false);
       fetchSetupStuff();
     } catch (error) {
-      console.error("Create setup stuff error:", error);
-      alert("Failed to save setup item");
+      console.error("Save setup stuff error:", error);
+      alert(editingItem ? "Failed to update setup item" : "Failed to save setup item");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (item) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete "${item.name}"?`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      setDeletingId(item._id);
+      await api.delete(`/setup-stuff/${item._id}`);
+      fetchSetupStuff();
+    } catch (error) {
+      console.error("Delete setup stuff error:", error);
+      alert("Failed to delete setup item");
+    } finally {
+      setDeletingId("");
     }
   };
 
@@ -197,19 +248,14 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
           </div>
         ) : setupItems.length > 0 ? (
           setupItems.map((item) => (
-            <div
-              key={item._id}
-              className="rounded-[24px] bg-white p-4 shadow-sm"
-            >
+            <div key={item._id} className="rounded-[24px] bg-white p-4 shadow-sm">
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#fff2d8]">
                   <Package size={18} />
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <h3 className="break-words text-base font-black">
-                    {item.name}
-                  </h3>
+                  <h3 className="break-words text-base font-black">{item.name}</h3>
                   <p className="mt-1 text-xs font-black uppercase tracking-wide text-[#9a6b3e]">
                     {getLocationName(item)}
                   </p>
@@ -233,24 +279,38 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
                   <p className="text-xs font-black text-[#9a6b3e]">
                     Price / Item
                   </p>
-                  <p className="mt-1 font-black">
-                    {formatMoney(item.pricePerItem)}
-                  </p>
+                  <p className="mt-1 font-black">{formatMoney(item.pricePerItem)}</p>
                 </div>
 
                 <div className="rounded-[16px] bg-[#fff8ea] p-3">
                   <p className="text-xs font-black text-[#9a6b3e]">Total</p>
-                  <p className="mt-1 font-black">
-                    {formatMoney(item.totalPrice)}
-                  </p>
+                  <p className="mt-1 font-black">{formatMoney(item.totalPrice)}</p>
                 </div>
 
                 <div className="col-span-2 rounded-[16px] bg-[#fff8ea] p-3">
                   <p className="text-xs font-black text-[#9a6b3e]">Date</p>
-                  <p className="mt-1 font-black">
-                    {formatDate(item.purchaseDate)}
-                  </p>
+                  <p className="mt-1 font-black">{formatDate(item.purchaseDate)}</p>
                 </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => handleEdit(item)}
+                  disabled={deletingId === item._id}
+                  className="flex items-center justify-center gap-2 rounded-[16px] bg-[#fff2d8] px-4 py-3 text-sm font-black text-[#2a1608] disabled:opacity-60"
+                >
+                  <Pencil size={16} />
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => handleDelete(item)}
+                  disabled={deletingId === item._id}
+                  className="flex items-center justify-center gap-2 rounded-[16px] bg-red-50 px-4 py-3 text-sm font-black text-red-600 disabled:opacity-60"
+                >
+                  <Trash2 size={16} />
+                  {deletingId === item._id ? "Deleting..." : "Delete"}
+                </button>
               </div>
             </div>
           ))
@@ -263,7 +323,7 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
 
       <div className="hidden overflow-hidden rounded-[16px] bg-white shadow-sm md:block">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-sm">
+          <table className="w-full min-w-[1080px] text-left text-sm">
             <thead className="bg-[#fff8ea]">
               <tr>
                 <th className="px-5 py-4">Item</th>
@@ -273,6 +333,7 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
                 <th className="px-5 py-4">Price / Item</th>
                 <th className="px-5 py-4">Total</th>
                 <th className="px-5 py-4">Date</th>
+                <th className="px-5 py-4 text-right">Actions</th>
               </tr>
             </thead>
 
@@ -280,7 +341,7 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-5 py-10 text-center font-bold text-[#9a6b3e]"
                   >
                     Loading setup items...
@@ -321,12 +382,34 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
                     <td className="px-5 py-4 font-semibold">
                       {formatDate(item.purchaseDate)}
                     </td>
+
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(item)}
+                          disabled={deletingId === item._id}
+                          className="rounded-[12px] bg-[#fff2d8] p-2 text-[#2a1608] disabled:opacity-60"
+                          title="Edit"
+                        >
+                          <Pencil size={16} />
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(item)}
+                          disabled={deletingId === item._id}
+                          className="rounded-[12px] bg-red-50 p-2 text-red-600 disabled:opacity-60"
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-5 py-10 text-center font-bold text-[#9a6b3e]"
                   >
                     No setup items found
@@ -338,7 +421,11 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
         </div>
       </div>
 
-      <Modal open={open} title="Add Setup Item" onClose={handleCloseModal}>
+      <Modal
+        open={open}
+        title={editingItem ? "Edit Setup Item" : "Add Setup Item"}
+        onClose={handleCloseModal}
+      >
         <form className="space-y-3">
           <select
             className="input"
@@ -424,7 +511,13 @@ export default function SetupStuffPage({ selectedLocation = "all" }) {
             disabled={saving}
             className="w-full rounded-[16px] bg-[#2a1608] py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? "Saving..." : "Save Setup Item"}
+            {saving
+              ? editingItem
+                ? "Updating..."
+                : "Saving..."
+              : editingItem
+              ? "Update Setup Item"
+              : "Save Setup Item"}
           </button>
         </form>
       </Modal>

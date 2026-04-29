@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, ShoppingBag, CalendarDays } from "lucide-react";
+import { Plus, ShoppingBag, CalendarDays, Pencil, Trash2 } from "lucide-react";
 import Modal from "./Modal";
 import api from "@/utils/api";
 
@@ -23,10 +23,19 @@ function formatDate(date) {
   });
 }
 
+function toDateInput(date) {
+  if (!date) return getToday();
+  return new Date(date).toISOString().split("T")[0];
+}
+
 export default function SalesPage({ selectedLocation = "all" }) {
   const [open, setOpen] = useState(false);
+  const [editingSale, setEditingSale] = useState(null);
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
+  
 
   const [sales, setSales] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -41,6 +50,24 @@ export default function SalesPage({ selectedLocation = "all" }) {
     paymentMode: "cash",
     notes: "",
   });
+
+  const resetForm = () => {
+    setEditingSale(null);
+    setForm({
+      location: selectedLocation !== "all" ? selectedLocation : "",
+      date: selectedDate,
+      customerName: "",
+      glasses: 1,
+      pricePerGlass: 59,
+      paidAmount: 0,
+      paymentMode: "cash",
+      notes: "",
+    });
+  };
+
+  const getLocationId = (value) => {
+    return typeof value === "object" ? value?._id : value;
+  };
 
   const fetchLocations = async () => {
     try {
@@ -136,40 +163,109 @@ export default function SalesPage({ selectedLocation = "all" }) {
     }));
   };
 
+  const handleOpenAdd = () => {
+    setEditingSale(null);
+    setForm({
+      location: selectedLocation !== "all" ? selectedLocation : "",
+      date: selectedDate,
+      customerName: "",
+      glasses: 1,
+      pricePerGlass: 59,
+      paidAmount: 0,
+      paymentMode: "cash",
+      notes: "",
+    });
+    setOpen(true);
+  };
+
+  const handleEdit = (sale) => {
+    setEditingSale(sale);
+    setForm({
+      location: getLocationId(sale.location) || "",
+      date: toDateInput(sale.date),
+      customerName: sale.customerName || "",
+      glasses: sale.glasses || 1,
+      pricePerGlass: sale.pricePerGlass || 59,
+      paidAmount: sale.paidAmount || 0,
+      paymentMode: sale.paymentMode || "cash",
+      notes: sale.notes || "",
+    });
+    setOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    if (saving) return;
+    setOpen(false);
+    resetForm();
+  };
+
   const handleSave = async () => {
+    if (saving) return;
+
     try {
       if (!form.location) return alert("Location is required");
       if (!form.date) return alert("Date is required");
       if (!form.customerName.trim()) return alert("Customer name is required");
       if (!form.glasses) return alert("Glasses is required");
 
-      await api.post("/sales", {
+      if (Number(form.glasses || 0) <= 0) {
+        return alert("Glasses must be greater than 0");
+      }
+
+      if (Number(form.pricePerGlass || 0) < 0) {
+        return alert("Price per glass cannot be negative");
+      }
+
+      if (Number(form.paidAmount || 0) < 0) {
+        return alert("Paid amount cannot be negative");
+      }
+
+      setSaving(true);
+
+      const payload = {
         location: form.location,
         date: form.date,
-        customerName: form.customerName,
+        customerName: form.customerName.trim(),
         glasses: Number(form.glasses || 0),
         pricePerGlass: Number(form.pricePerGlass || 59),
         paidAmount: Number(form.paidAmount || 0),
         paymentMode: form.paymentMode,
-        notes: form.notes,
-      });
+        notes: form.notes.trim(),
+      };
 
-      setForm({
-        location: selectedLocation !== "all" ? selectedLocation : "",
-        date: selectedDate,
-        customerName: "",
-        glasses: 1,
-        pricePerGlass: 59,
-        paidAmount: 0,
-        paymentMode: "cash",
-        notes: "",
-      });
+      if (editingSale?._id) {
+        await api.put(`/sales/${editingSale._id}`, payload);
+      } else {
+        await api.post("/sales", payload);
+      }
 
+      resetForm();
       setOpen(false);
       fetchSales();
     } catch (error) {
-      console.error("Create sale error:", error);
+      console.error("Save sale error:", error);
       alert(error?.response?.data?.message || "Failed to save sale");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (sale) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete sale of "${sale.customerName}"?`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      setDeletingId(sale._id);
+      await api.delete(`/sales/${sale._id}`);
+      fetchSales();
+    } catch (error) {
+      console.error("Delete sale error:", error);
+      alert(error?.response?.data?.message || "Failed to delete sale");
+    } finally {
+      setDeletingId("");
     }
   };
 
@@ -213,14 +309,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
             </div>
 
             <button
-              onClick={() => {
-                setForm((prev) => ({
-                  ...prev,
-                  location: selectedLocation !== "all" ? selectedLocation : "",
-                  date: selectedDate,
-                }));
-                setOpen(true);
-              }}
+              onClick={handleOpenAdd}
               className="col-span-2 flex items-center justify-center gap-2 rounded-[14px] bg-[#2a1608] px-4 py-3 text-sm font-black text-white sm:col-span-1 sm:px-5"
             >
               <Plus size={17} />
@@ -298,6 +387,26 @@ export default function SalesPage({ selectedLocation = "all" }) {
                     <MobileInfo label="Extra" value={`₹${sale.extraAmount}`} />
                     <MobileInfo label="Mode" value={sale.paymentMode} capitalize />
                   </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => handleEdit(sale)}
+                      disabled={deletingId === sale._id}
+                      className="flex items-center justify-center gap-2 rounded-[14px] bg-[#fff2d8] px-4 py-3 text-sm font-black text-[#2a1608] disabled:opacity-60"
+                    >
+                      <Pencil size={16} />
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(sale)}
+                      disabled={deletingId === sale._id}
+                      className="flex items-center justify-center gap-2 rounded-[14px] bg-red-50 px-4 py-3 text-sm font-black text-red-600 disabled:opacity-60"
+                    >
+                      <Trash2 size={16} />
+                      {deletingId === sale._id ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -309,7 +418,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
         </div>
 
         <div className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[950px] text-left text-sm">
+          <table className="w-full min-w-[1050px] text-left text-sm">
             <thead className="bg-[#fff8ea]">
               <tr>
                 <th className="px-5 py-4">Date</th>
@@ -321,6 +430,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
                 <th className="px-5 py-4">Extra</th>
                 <th className="px-5 py-4">Status</th>
                 <th className="px-5 py-4">Mode</th>
+                <th className="px-5 py-4 text-right">Actions</th>
               </tr>
             </thead>
 
@@ -328,7 +438,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     className="px-5 py-10 text-center font-bold text-[#9a6b3e]"
                   >
                     Loading sales...
@@ -362,12 +472,33 @@ export default function SalesPage({ selectedLocation = "all" }) {
                     <td className="px-5 py-4 font-semibold capitalize">
                       {sale.paymentMode}
                     </td>
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(sale)}
+                          disabled={deletingId === sale._id}
+                          className="rounded-[12px] bg-[#fff2d8] p-2 text-[#2a1608] disabled:opacity-60"
+                          title="Edit"
+                        >
+                          <Pencil size={16} />
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(sale)}
+                          disabled={deletingId === sale._id}
+                          className="rounded-[12px] bg-red-50 p-2 text-red-600 disabled:opacity-60"
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     className="px-5 py-10 text-center font-bold text-[#9a6b3e]"
                   >
                     No sales found for this date
@@ -379,14 +510,18 @@ export default function SalesPage({ selectedLocation = "all" }) {
         </div>
       </div>
 
-      <Modal open={open} title="Add Sale Entry" onClose={() => setOpen(false)}>
+      <Modal
+        open={open}
+        title={editingSale ? "Edit Sale Entry" : "Add Sale Entry"}
+        onClose={handleCloseModal}
+      >
         <form className="max-h-[75vh] space-y-3 overflow-y-auto pr-1 sm:space-y-4">
           <select
             className="input text-sm"
             name="location"
             value={form.location}
             onChange={handleChange}
-            disabled={selectedLocation !== "all"}
+            disabled={selectedLocation !== "all" || saving}
           >
             <option value="">Select location</option>
             {locations.map((location) => (
@@ -403,6 +538,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
             value={form.date}
             max={getToday()}
             onChange={handleChange}
+            disabled={saving}
           />
 
           <input
@@ -410,6 +546,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
             name="customerName"
             value={form.customerName}
             onChange={handleChange}
+            disabled={saving}
             placeholder="Customer name"
           />
 
@@ -422,6 +559,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
               value={form.glasses}
               min="1"
               onChange={handleChange}
+              disabled={saving}
             />
 
             <input
@@ -432,6 +570,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
               value={form.pricePerGlass}
               min="0"
               onChange={handleChange}
+              disabled={saving}
             />
           </div>
 
@@ -443,6 +582,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
             value={form.paidAmount}
             min="0"
             onChange={handleChange}
+            disabled={saving}
           />
 
           <select
@@ -450,6 +590,7 @@ export default function SalesPage({ selectedLocation = "all" }) {
             name="paymentMode"
             value={form.paymentMode}
             onChange={handleChange}
+            disabled={saving}
           >
             <option value="cash">Cash</option>
             <option value="upi">UPI</option>
@@ -478,15 +619,23 @@ export default function SalesPage({ selectedLocation = "all" }) {
             name="notes"
             value={form.notes}
             onChange={handleChange}
+            disabled={saving}
             placeholder="Notes"
           />
 
           <button
             type="button"
             onClick={handleSave}
-            className="w-full rounded-[16px] bg-[#2a1608] py-3 text-sm font-black text-white sm:text-base"
+            disabled={saving}
+            className="w-full rounded-[16px] bg-[#2a1608] py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60 sm:text-base"
           >
-            Save Sale
+            {saving
+              ? editingSale
+                ? "Updating..."
+                : "Saving..."
+              : editingSale
+              ? "Update Sale"
+              : "Save Sale"}
           </button>
         </form>
       </Modal>
