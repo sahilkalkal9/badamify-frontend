@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   LayoutDashboard,
   MapPin,
@@ -21,6 +22,9 @@ const navItems = [
   { key: "sales", label: "Sales", icon: ShoppingBag },
 ];
 
+const LOGO =
+  "https://ik.imagekit.io/fkhvlkpi1/WhatsApp_Image_2026-04-29_at_6.18.40_PM-removebg-preview.png";
+
 export default function Sidebar({
   activePage,
   setActivePage,
@@ -41,12 +45,36 @@ export default function Sidebar({
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="mb-8 flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight">Badamify</h1>
-            <p className="text-sm font-semibold text-[#9a6b3e]">
-              Admin Panel
-            </p>
+        {/* 🔥 Watermark */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <Image
+            src={LOGO}
+            alt="logo"
+            width={200}
+            height={200}
+            className="opacity-10 object-contain"
+          />
+        </div>
+
+        {/* Top */}
+        <div className="relative mb-8 flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <Image
+              src={LOGO}
+              alt="logo"
+              width={42}
+              height={42}
+              className="rounded-xl object-contain"
+            />
+
+            <div>
+              <h1 className="text-2xl font-black tracking-tight">
+                Badamify
+              </h1>
+              <p className="text-xs font-semibold text-[#9a6b3e]">
+                Admin Panel
+              </p>
+            </div>
           </div>
 
           <button
@@ -57,7 +85,8 @@ export default function Sidebar({
           </button>
         </div>
 
-        <nav className="space-y-2">
+        {/* Nav */}
+        <nav className="relative space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = activePage === item.key;
