@@ -11,28 +11,27 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#2a1608",
+};
+
 export const metadata = {
   title: "Badamify",
   description: "Badam Ragda | Energy Drink",
-
-  // 🔥 PWA setup
   manifest: "/manifest.json",
-  themeColor: "#000000",
 
   icons: {
     icon: "/icon-192.png",
-    apple: "/icon-192.png",
+    apple: "/apple-touch-icon.png",
   },
 
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
     title: "Badamify",
-  },
-
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
+    statusBarStyle: "black-translucent",
   },
 };
 
@@ -42,7 +41,55 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-white">
+      <head>
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Badamify" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
+
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+        <link
+          rel="apple-touch-startup-image"
+          href="/splash-1170x2532.png"
+          media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)"
+        />
+
+        <link
+          rel="apple-touch-startup-image"
+          href="/splash-1290x2796.png"
+          media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)"
+        />
+
+        <link
+          rel="apple-touch-startup-image"
+          href="/splash-1125x2436.png"
+          media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)"
+        />
+
+        <link
+          rel="apple-touch-startup-image"
+          href="/splash-1242x2688.png"
+          media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)"
+        />
+
+        <link
+          rel="apple-touch-startup-image"
+          href="/splash-828x1792.png"
+          media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)"
+        />
+
+        <link
+          rel="apple-touch-startup-image"
+          href="/splash-750x1334.png"
+          media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)"
+        />
+      </head>
+
+      <body className="min-h-full flex flex-col bg-[#fff8ea]">
         {children}
       </body>
     </html>

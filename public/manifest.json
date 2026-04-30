@@ -1,10 +1,11 @@
 {
   "name": "Badamify",
   "short_name": "Badamify",
+  "description": "Badam Ragda | Energy Drink",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#fff8ea",
+  "theme_color": "#2a1608",
   "icons": [
     {
       "src": "/icon-192.png",
