@@ -5,17 +5,15 @@ import { Plus, Utensils } from "lucide-react";
 import Modal from "./Modal";
 import api from "@/utils/api";
 
-export default function RecipeItemsPage({ selectedLocation = "all" }) {
+export default function RecipeItemsPage() {
   const [open, setOpen] = useState(false);
   const [recipeItems, setRecipeItems] = useState([]);
-  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
 
   const [form, setForm] = useState({
-    location: "",
     name: "",
     unit: "",
     pricePerUnit: "",
@@ -24,7 +22,6 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
 
   const resetForm = () => {
     setForm({
-      location: selectedLocation !== "all" ? selectedLocation : "",
       name: "",
       unit: "",
       pricePerUnit: "",
@@ -32,25 +29,12 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
     });
   };
 
-  const fetchLocations = async () => {
-    try {
-      const { data } = await api.get("/locations");
-      setLocations(data?.locations || []);
-    } catch (error) {
-      console.error("Fetch locations error:", error);
-    }
-  };
-
   const fetchRecipeItems = async () => {
     try {
       setLoading(true);
 
-      const url =
-        selectedLocation && selectedLocation !== "all"
-          ? `/recipe-items?locationId=${selectedLocation}`
-          : "/recipe-items";
+      const { data } = await api.get("/recipe-items");
 
-      const { data } = await api.get(url);
       setRecipeItems(data?.items || []);
     } catch (error) {
       console.error("Fetch recipe items error:", error);
@@ -61,24 +45,15 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
   };
 
   useEffect(() => {
-    fetchLocations();
+    fetchRecipeItems();
   }, []);
 
-  useEffect(() => {
-    fetchRecipeItems();
-
-    if (selectedLocation !== "all") {
-      setForm((prev) => ({
-        ...prev,
-        location: selectedLocation,
-      }));
-    }
-  }, [selectedLocation]);
-
   const handleChange = (e) => {
+    const { name, value } = e.target;
+
     setForm((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
   };
 
@@ -92,7 +67,6 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
     setEditingItem(item);
 
     setForm({
-      location: item.location?._id || item.location,
       name: item.name || "",
       unit: item.unit || "",
       pricePerUnit: item.pricePerUnit ?? "",
@@ -114,7 +88,6 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
     if (saving) return;
 
     try {
-      if (!form.location) return alert("Location is required");
       if (!form.name.trim()) return alert("Item name is required");
       if (!form.unit) return alert("Unit is required");
 
@@ -129,7 +102,6 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
       setSaving(true);
 
       const payload = {
-        location: form.location,
         name: form.name.trim(),
         unit: form.unit,
         pricePerUnit: Number(form.pricePerUnit || 0),
@@ -148,7 +120,7 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
       fetchRecipeItems();
     } catch (error) {
       console.error("Save recipe item error:", error);
-      alert("Failed to save item");
+      alert(error?.response?.data?.message || "Failed to save item");
     } finally {
       setSaving(false);
     }
@@ -169,7 +141,7 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
       fetchRecipeItems();
     } catch (error) {
       console.error("Delete recipe item error:", error);
-      alert("Failed to delete item");
+      alert(error?.response?.data?.message || "Failed to delete item");
     } finally {
       setDeletingId(null);
     }
@@ -183,8 +155,9 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
             <h2 className="text-xl font-black leading-tight text-[#2a1608] sm:text-2xl">
               Recipe Items
             </h2>
+
             <p className="mt-1 text-xs font-semibold leading-relaxed text-[#9a6b3e] sm:text-sm">
-              Raw materials used to make Badam Ragda
+              Common raw materials used to make Badam Ragda
             </p>
           </div>
 
@@ -198,7 +171,6 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
         </div>
       </div>
 
-      {/* Mobile cards */}
       <div className="space-y-3 md:hidden">
         {loading ? (
           <div className="rounded-[16px] bg-white px-4 py-10 text-center text-sm font-bold text-[#9a6b3e] shadow-sm">
@@ -277,7 +249,6 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
         )}
       </div>
 
-      {/* Tablet/Desktop table */}
       <div className="hidden overflow-hidden rounded-[16px] bg-white shadow-sm md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
@@ -319,6 +290,7 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-[#fff2d8]">
                           <Utensils size={18} />
                         </div>
+
                         <span className="break-words font-black text-[#2a1608]">
                           {item.name}
                         </span>
@@ -380,21 +352,6 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
         onClose={handleCloseModal}
       >
         <form className="max-h-[75vh] space-y-3 overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0">
-          <select
-            className="input text-sm"
-            name="location"
-            value={form.location}
-            onChange={handleChange}
-            disabled={selectedLocation !== "all" || saving}
-          >
-            <option value="">Select location</option>
-            {locations.map((location) => (
-              <option key={location._id} value={location._id}>
-                {location.name}
-              </option>
-            ))}
-          </select>
-
           <input
             className="input text-sm"
             name="name"
@@ -452,8 +409,8 @@ export default function RecipeItemsPage({ selectedLocation = "all" }) {
                 ? "Updating..."
                 : "Saving..."
               : editingItem
-              ? "Update Item"
-              : "Save Item"}
+                ? "Update Item"
+                : "Save Item"}
           </button>
         </form>
       </Modal>
