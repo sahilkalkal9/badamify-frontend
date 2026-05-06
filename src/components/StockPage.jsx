@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Boxes, ShoppingCart, Pencil, Trash2 } from "lucide-react";
 import Modal from "./Modal";
 import api from "@/utils/api";
@@ -11,6 +11,7 @@ const formatMoney = (value) => {
 
 const formatDate = (date) => {
   if (!date) return "-";
+
   return new Date(date).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -23,18 +24,16 @@ const toDateInput = (date) => {
   return new Date(date).toISOString().split("T")[0];
 };
 
-export default function StockPage({ selectedLocation = "all" }) {
+export default function StockPage() {
   const [open, setOpen] = useState(false);
   const [editingPurchase, setEditingPurchase] = useState(null);
   const [recipeItems, setRecipeItems] = useState([]);
   const [stockPurchases, setStockPurchases] = useState([]);
-  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState("");
 
   const [form, setForm] = useState({
-    location: "",
     item: "",
     quantity: "",
     pricePerUnit: "",
@@ -45,26 +44,14 @@ export default function StockPage({ selectedLocation = "all" }) {
     notes: "",
   });
 
-  const getLocationName = (locationValue) => {
-    if (locationValue?.name) return locationValue.name;
-    const locationId =
-      typeof locationValue === "object" ? locationValue?._id : locationValue;
-    const found = locations.find((loc) => loc._id === locationId);
-    return found?.name || "-";
-  };
-
-  const getLocationId = (locationValue) => {
-    return typeof locationValue === "object" ? locationValue?._id : locationValue;
-  };
-
   const getItemId = (itemValue) => {
     return typeof itemValue === "object" ? itemValue?._id : itemValue;
   };
 
   const resetForm = () => {
     setEditingPurchase(null);
+
     setForm({
-      location: selectedLocation !== "all" ? selectedLocation : "",
       item: "",
       quantity: "",
       pricePerUnit: "",
@@ -76,27 +63,13 @@ export default function StockPage({ selectedLocation = "all" }) {
     });
   };
 
-  const fetchLocations = async () => {
-    try {
-      const { data } = await api.get("/locations");
-      setLocations(data?.locations || []);
-    } catch (error) {
-      console.error("Fetch locations error:", error);
-    }
-  };
-
   const fetchStockData = async () => {
     try {
       setLoading(true);
 
-      const query =
-        selectedLocation && selectedLocation !== "all"
-          ? `?locationId=${selectedLocation}`
-          : "";
-
       const [itemsRes, purchasesRes] = await Promise.all([
-        api.get(`/recipe-items${query}`),
-        api.get(`/stock-purchases${query}`),
+        api.get("/recipe-items"),
+        api.get("/stock-purchases"),
       ]);
 
       setRecipeItems(itemsRes.data?.items || []);
@@ -111,31 +84,8 @@ export default function StockPage({ selectedLocation = "all" }) {
   };
 
   useEffect(() => {
-    fetchLocations();
-  }, []);
-
-  useEffect(() => {
     fetchStockData();
-
-    if (selectedLocation !== "all") {
-      setForm((prev) => ({
-        ...prev,
-        location: selectedLocation,
-        item: "",
-      }));
-    }
-  }, [selectedLocation]);
-
-  const filteredItemsForModal = useMemo(() => {
-    if (!form.location) return recipeItems;
-
-    return recipeItems.filter((item) => {
-      const itemLocation =
-        typeof item.location === "object" ? item.location?._id : item.location;
-
-      return itemLocation === form.location;
-    });
-  }, [form.location, recipeItems]);
+  }, []);
 
   const selectedItem = recipeItems.find((item) => item._id === form.item);
 
@@ -146,7 +96,6 @@ export default function StockPage({ selectedLocation = "all" }) {
     return {
       id: item._id,
       item: item.name,
-      location: getLocationName(item.location),
       stock: `${Number(item.currentStock || 0).toLocaleString("en-IN")} ${
         item.unit
       }`,
@@ -163,7 +112,6 @@ export default function StockPage({ selectedLocation = "all" }) {
     id: purchase._id,
     raw: purchase,
     item: purchase.itemName,
-    location: getLocationName(purchase.location),
     quantity: `${Number(purchase.quantity || 0).toLocaleString("en-IN")} ${
       purchase.unit
     }`,
@@ -200,15 +148,6 @@ export default function StockPage({ selectedLocation = "all" }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    if (name === "location") {
-      setForm((prev) => ({
-        ...prev,
-        location: value,
-        item: "",
-      }));
-      return;
-    }
-
     if (name === "item") {
       const item = recipeItems.find((recipeItem) => recipeItem._id === value);
 
@@ -217,6 +156,7 @@ export default function StockPage({ selectedLocation = "all" }) {
         item: value,
         pricePerUnit: item?.pricePerUnit || "",
       }));
+
       return;
     }
 
@@ -244,8 +184,8 @@ export default function StockPage({ selectedLocation = "all" }) {
     }
 
     setEditingPurchase(purchase);
+
     setForm({
-      location: getLocationId(purchase.location) || "",
       item: getItemId(purchase.item) || purchase.itemId || "",
       quantity: purchase.quantity || "",
       pricePerUnit: purchase.pricePerUnit || "",
@@ -255,11 +195,13 @@ export default function StockPage({ selectedLocation = "all" }) {
       purchaseDate: toDateInput(purchase.purchaseDate),
       notes: purchase.notes || "",
     });
+
     setOpen(true);
   };
 
   const handleCloseModal = () => {
     if (saving) return;
+
     setOpen(false);
     resetForm();
   };
@@ -268,14 +210,18 @@ export default function StockPage({ selectedLocation = "all" }) {
     if (saving) return;
 
     try {
-      if (!form.location) return alert("Location is required");
       if (!form.item) return alert("Item is required");
       if (!form.quantity) return alert("Quantity is required");
-      if (Number(form.quantity || 0) <= 0)
+
+      if (Number(form.quantity || 0) <= 0) {
         return alert("Quantity must be greater than 0");
+      }
+
       if (!form.pricePerUnit) return alert("Price per unit is required");
-      if (Number(form.pricePerUnit || 0) < 0)
+
+      if (Number(form.pricePerUnit || 0) < 0) {
         return alert("Price per unit cannot be negative");
+      }
 
       if (
         form.paymentStatus === "partial" &&
@@ -294,7 +240,6 @@ export default function StockPage({ selectedLocation = "all" }) {
       setSaving(true);
 
       const payload = {
-        location: form.location,
         item: form.item,
         quantity: Number(form.quantity || 0),
         pricePerUnit: Number(form.pricePerUnit || 0),
@@ -304,8 +249,8 @@ export default function StockPage({ selectedLocation = "all" }) {
           form.paymentStatus === "paid"
             ? totalAmount
             : form.paymentStatus === "unpaid"
-            ? 0
-            : Number(form.paidAmount || 0),
+              ? 0
+              : Number(form.paidAmount || 0),
         purchaseDate: form.purchaseDate || new Date().toISOString(),
         notes: form.notes.trim(),
       };
@@ -329,14 +274,18 @@ export default function StockPage({ selectedLocation = "all" }) {
 
   const handleDelete = async (purchase) => {
     const confirmDelete = window.confirm(
-      `Are you sure you want to delete "${purchase.itemName || "this stock purchase"}"?`
+      `Are you sure you want to delete "${
+        purchase.itemName || "this stock purchase"
+      }"?`
     );
 
     if (!confirmDelete) return;
 
     try {
       setDeletingId(purchase._id);
+
       await api.delete(`/stock-purchases/${purchase._id}`);
+
       fetchStockData();
     } catch (error) {
       console.error("Delete stock purchase error:", error);
@@ -353,14 +302,17 @@ export default function StockPage({ selectedLocation = "all" }) {
           title="Total Stock Purchased"
           value={loading ? "Loading..." : formatMoney(totalStockPurchased)}
         />
+
         <SummaryCard
           title="Current Stock Value"
           value={loading ? "Loading..." : formatMoney(currentStockValue)}
         />
+
         <SummaryCard
           title="Stock Investment Paid"
           value={loading ? "Loading..." : formatMoney(totalStockPaid)}
         />
+
         <SummaryCard
           title="Low Stock Items"
           value={loading ? "Loading..." : lowStockItems}
@@ -371,9 +323,11 @@ export default function StockPage({ selectedLocation = "all" }) {
         <p className="text-sm font-semibold text-[#f2c078]">
           Stock Investment Rule
         </p>
+
         <h2 className="mt-1 text-xl font-black sm:text-2xl">
           New stock purchase = Total Investment
         </h2>
+
         <p className="mt-2 text-sm leading-6 text-white/70">
           Daily production me jo material use hoga, wo sirf stock consume karega.
           Investment me dobara add nahi hoga.
@@ -422,28 +376,9 @@ export default function StockPage({ selectedLocation = "all" }) {
         <form className="space-y-4">
           <div>
             <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
-              Location *
-            </label>
-            <select
-              className="input"
-              name="location"
-              value={form.location}
-              onChange={handleChange}
-              disabled={selectedLocation !== "all" || saving}
-            >
-              <option value="">Select location</option>
-              {locations.map((location) => (
-                <option key={location._id} value={location._id}>
-                  {location.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
               Item *
             </label>
+
             <select
               className="input"
               name="item"
@@ -452,7 +387,8 @@ export default function StockPage({ selectedLocation = "all" }) {
               disabled={saving}
             >
               <option value="">Select item</option>
-              {filteredItemsForModal.map((item) => (
+
+              {recipeItems.map((item) => (
                 <option key={item._id} value={item._id}>
                   {item.name} - {item.unit}
                 </option>
@@ -464,6 +400,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
               Quantity Purchased *
             </label>
+
             <input
               className="input"
               name="quantity"
@@ -479,6 +416,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
               Unit
             </label>
+
             <select className="input" value={selectedItem?.unit || ""} disabled>
               <option value="">Unit auto selected</option>
               <option value="kg">Kg</option>
@@ -493,6 +431,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
               Price Per Unit *
             </label>
+
             <input
               className="input"
               name="pricePerUnit"
@@ -508,6 +447,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
               Vendor Name
             </label>
+
             <input
               className="input"
               name="vendorName"
@@ -522,6 +462,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
               Payment Status
             </label>
+
             <select
               className="input"
               name="paymentStatus"
@@ -539,10 +480,13 @@ export default function StockPage({ selectedLocation = "all" }) {
             <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
               Paid Amount
             </label>
+
             <input
               className="input"
               name="paidAmount"
-              value={form.paymentStatus === "paid" ? totalAmount : form.paidAmount}
+              value={
+                form.paymentStatus === "paid" ? totalAmount : form.paidAmount
+              }
               onChange={handleChange}
               type="number"
               disabled={form.paymentStatus === "paid" || saving}
@@ -554,6 +498,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
               Purchase Date
             </label>
+
             <input
               className="input"
               name="purchaseDate"
@@ -568,6 +513,7 @@ export default function StockPage({ selectedLocation = "all" }) {
             <label className="mb-1 block text-xs font-black text-[#9a6b3e]">
               Notes
             </label>
+
             <textarea
               className="input min-h-[100px] resize-none"
               name="notes"
@@ -593,8 +539,8 @@ export default function StockPage({ selectedLocation = "all" }) {
                 ? "Updating..."
                 : "Saving..."
               : editingPurchase
-              ? "Update Stock Purchase"
-              : "Save Stock Purchase"}
+                ? "Update Stock Purchase"
+                : "Save Stock Purchase"}
           </button>
         </form>
       </Modal>
@@ -608,7 +554,9 @@ function SummaryCard({ title, value }) {
       <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#fff2d8] sm:h-12 sm:w-12">
         <Boxes size={22} />
       </div>
+
       <p className="text-xs font-black text-[#9a6b3e] sm:text-sm">{title}</p>
+
       <h3 className="mt-2 break-words text-xl font-black sm:text-2xl lg:text-3xl">
         {value}
       </h3>
@@ -627,10 +575,9 @@ function StockTable({
 }) {
   const columns =
     type === "current"
-      ? ["Item", "Location", "Current Stock", "Price / Unit", "Stock Value", "Alert"]
+      ? ["Item", "Current Stock", "Price / Unit", "Stock Value", "Alert"]
       : [
           "Item",
-          "Location",
           "Quantity",
           "Price / Unit",
           "Total",
@@ -646,6 +593,7 @@ function StockTable({
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-[#fff2d8]">
           {type === "current" ? <Boxes size={18} /> : <ShoppingCart size={18} />}
         </div>
+
         <h3 className="text-lg font-black sm:text-xl">{title}</h3>
       </div>
 
@@ -673,9 +621,6 @@ function StockTable({
                   <h4 className="break-words text-base font-black">
                     {row.item}
                   </h4>
-                  <p className="mt-1 text-xs font-black uppercase tracking-wide text-[#9a6b3e]">
-                    {row.location}
-                  </p>
                 </div>
               </div>
 
@@ -684,8 +629,10 @@ function StockTable({
                   <InfoBox title="Current Stock" value={row.stock} />
                   <InfoBox title="Price / Unit" value={row.pricePerUnit} />
                   <InfoBox title="Stock Value" value={row.value} />
+
                   <div className="rounded-[16px] bg-[#fff8ea] p-3">
                     <p className="text-xs font-black text-[#9a6b3e]">Alert</p>
+
                     <span
                       className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-black ${
                         row.alert === "Low"
@@ -739,7 +686,7 @@ function StockTable({
       </div>
 
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[1080px] text-left text-sm">
+        <table className="w-full min-w-[900px] text-left text-sm">
           <thead className="bg-[#fff8ea]">
             <tr>
               {columns.map((col) => (
@@ -771,7 +718,6 @@ function StockTable({
                   {type === "current" ? (
                     <>
                       <td className="px-5 py-4 font-black">{row.item}</td>
-                      <td className="px-5 py-4 font-semibold">{row.location}</td>
                       <td className="px-5 py-4 font-semibold">{row.stock}</td>
                       <td className="px-5 py-4 font-semibold">
                         {row.pricePerUnit}
@@ -792,8 +738,9 @@ function StockTable({
                   ) : (
                     <>
                       <td className="px-5 py-4 font-black">{row.item}</td>
-                      <td className="px-5 py-4 font-semibold">{row.location}</td>
-                      <td className="px-5 py-4 font-semibold">{row.quantity}</td>
+                      <td className="px-5 py-4 font-semibold">
+                        {row.quantity}
+                      </td>
                       <td className="px-5 py-4 font-semibold">
                         {row.pricePerUnit}
                       </td>
