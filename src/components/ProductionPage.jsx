@@ -28,6 +28,13 @@ function toDateInput(date) {
   return new Date(date).toISOString().split("T")[0];
 }
 
+const emptyUsedItem = {
+  item: "",
+  quantityUsed: "",
+  unit: "",
+  pricePerUnit: 0,
+};
+
 export default function ProductionPage({ selectedLocation = "all" }) {
   const [open, setOpen] = useState(false);
   const [editingProduction, setEditingProduction] = useState(null);
@@ -48,12 +55,15 @@ export default function ProductionPage({ selectedLocation = "all" }) {
     notes: "",
   });
 
+  const [usedItems, setUsedItems] = useState([{ ...emptyUsedItem }]);
 
+  const getLocationId = (value) => {
+    return typeof value === "object" ? value?._id : value;
+  };
 
-
-  const [usedItems, setUsedItems] = useState([
-    { item: "", quantityUsed: "", unit: "", pricePerUnit: 0 },
-  ]);
+  const getItemId = (value) => {
+    return typeof value === "object" ? value?._id : value;
+  };
 
   const resetForm = () => {
     setEditingProduction(null);
@@ -64,15 +74,7 @@ export default function ProductionPage({ selectedLocation = "all" }) {
       estimatedGlasses: "",
       notes: "",
     });
-    setUsedItems(buildPrefilledUsedItems());
-  };
-
-  const getLocationId = (value) => {
-    return typeof value === "object" ? value?._id : value;
-  };
-
-  const getItemId = (value) => {
-    return typeof value === "object" ? value?._id : value;
+    setUsedItems([{ ...emptyUsedItem }]);
   };
 
   const fetchLocations = async () => {
@@ -81,17 +83,13 @@ export default function ProductionPage({ selectedLocation = "all" }) {
       setLocations(data?.locations || []);
     } catch (error) {
       console.error("Fetch locations error:", error);
+      setLocations([]);
     }
   };
 
   const fetchRecipeItems = async () => {
     try {
-      const query =
-        selectedLocation && selectedLocation !== "all"
-          ? `?locationId=${selectedLocation}`
-          : "";
-
-      const { data } = await api.get(`/recipe-items${query}`);
+      const { data } = await api.get("/recipe-items");
       setRecipeItems(data?.items || []);
     } catch (error) {
       console.error("Fetch recipe items error:", error);
@@ -140,29 +138,8 @@ export default function ProductionPage({ selectedLocation = "all" }) {
   }, [selectedLocation, selectedDate]);
 
   const filteredItemsForModal = useMemo(() => {
-    if (!form.location) return recipeItems;
-
-    return recipeItems.filter((item) => {
-      const itemLocation =
-        typeof item.location === "object" ? item.location?._id : item.location;
-
-      return itemLocation === form.location;
-    });
-  }, [form.location, recipeItems]);
-
-
-    const buildPrefilledUsedItems = (items = filteredItemsForModal) => {
-  if (!items.length) {
-    return [{ item: "", quantityUsed: "", unit: "", pricePerUnit: 0 }];
-  }
-
-  return items.map((item) => ({
-    item: item._id,
-    quantityUsed: "",
-    unit: item.unit || "",
-    pricePerUnit: item.pricePerUnit || 0,
-  }));
-};
+    return recipeItems;
+  }, [recipeItems]);
 
   const selectedPrepared = productions.reduce(
     (sum, item) => sum + Number(item.totalPreparedLiters || 0),
@@ -185,15 +162,12 @@ export default function ProductionPage({ selectedLocation = "all" }) {
   );
 
   const addUsedItem = () => {
-    setUsedItems([
-      ...usedItems,
-      { item: "", quantityUsed: "", unit: "", pricePerUnit: 0 },
-    ]);
+    setUsedItems((prev) => [...prev, { ...emptyUsedItem }]);
   };
 
   const removeUsedItem = (index) => {
     if (usedItems.length === 1) return;
-    setUsedItems(usedItems.filter((_, i) => i !== index));
+    setUsedItems((prev) => prev.filter((_, i) => i !== index));
   };
 
   const updateUsedItem = (index, field, value) => {
@@ -205,8 +179,9 @@ export default function ProductionPage({ selectedLocation = "all" }) {
       updated[index] = {
         ...updated[index],
         item: value,
+        quantityUsed: updated[index].quantityUsed || "",
         unit: selected?.unit || "",
-        pricePerUnit: selected?.pricePerUnit || 0,
+        pricePerUnit: Number(selected?.pricePerUnit || 0),
       };
     } else {
       updated[index][field] = value;
@@ -228,14 +203,6 @@ export default function ProductionPage({ selectedLocation = "all" }) {
         location: value,
       }));
 
-      const locationItems = recipeItems.filter((item) => {
-  const itemLocation =
-    typeof item.location === "object" ? item.location?._id : item.location;
-
-  return itemLocation === value;
-});
-
-setUsedItems(buildPrefilledUsedItems(locationItems));
       return;
     }
 
@@ -254,7 +221,7 @@ setUsedItems(buildPrefilledUsedItems(locationItems));
       estimatedGlasses: "",
       notes: "",
     });
-    setUsedItems(buildPrefilledUsedItems());
+    setUsedItems([{ ...emptyUsedItem }]);
     setOpen(true);
   };
 
@@ -279,10 +246,12 @@ setUsedItems(buildPrefilledUsedItems(locationItems));
               item: itemId || "",
               quantityUsed: used.quantityUsed || "",
               unit: used.unit || selected?.unit || "",
-              pricePerUnit: used.pricePerUnit || selected?.pricePerUnit || 0,
+              pricePerUnit: Number(
+                used.pricePerUnit || selected?.pricePerUnit || 0
+              ),
             };
           })
-        : [{ item: "", quantityUsed: "", unit: "", pricePerUnit: 0 }];
+        : [{ ...emptyUsedItem }];
 
     setUsedItems(mappedItems);
     setOpen(true);
@@ -438,11 +407,11 @@ setUsedItems(buildPrefilledUsedItems(locationItems));
           Production Rule
         </p>
         <h2 className="mt-1 text-lg font-black leading-tight sm:text-2xl">
-          Production = Stock consume, not new investment
+          Production = Global stock consume, not new investment
         </h2>
         <p className="mt-2 text-xs leading-relaxed text-white/70 sm:text-sm">
-          Jo raw material production me use hoga, backend me stock reduce hoga
-          and making cost calculate hogi.
+          Production location-wise save hogi, but items global stock se consume
+          honge.
         </p>
       </div>
 
@@ -700,7 +669,12 @@ setUsedItems(buildPrefilledUsedItems(locationItems));
 
           <div className="rounded-[16px] bg-[#fff8ea] p-3 sm:p-4">
             <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="font-black">Items Used *</h3>
+              <div>
+                <h3 className="font-black">Items Used *</h3>
+                <p className="mt-1 text-xs font-semibold text-[#9a6b3e]">
+                  Select global item and enter used quantity
+                </p>
+              </div>
 
               <button
                 type="button"
@@ -720,11 +694,15 @@ setUsedItems(buildPrefilledUsedItems(locationItems));
                 >
                   <div className="grid gap-3 sm:grid-cols-2">
                     <select
-  className="input min-w-0 text-sm"
-  value={used.item}
-  disabled
->
+                      className="input min-w-0 text-sm"
+                      value={used.item}
+                      onChange={(e) =>
+                        updateUsedItem(index, "item", e.target.value)
+                      }
+                      disabled={saving}
+                    >
                       <option value="">Select item</option>
+
                       {filteredItemsForModal.map((item) => (
                         <option key={item._id} value={item._id}>
                           {item.name} - ₹{item.pricePerUnit}/{item.unit}
@@ -735,6 +713,7 @@ setUsedItems(buildPrefilledUsedItems(locationItems));
                     <input
                       className="input text-sm"
                       type="number"
+                      min="0"
                       disabled={saving}
                       placeholder={`Qty ${used.unit ? `(${used.unit})` : ""}`}
                       value={used.quantityUsed}
@@ -750,8 +729,10 @@ setUsedItems(buildPrefilledUsedItems(locationItems));
                     </span>
                     <span>
                       ₹
-                      {Number(used.quantityUsed || 0) *
-                        Number(used.pricePerUnit || 0)}
+                      {(
+                        Number(used.quantityUsed || 0) *
+                        Number(used.pricePerUnit || 0)
+                      ).toLocaleString("en-IN")}
                     </span>
                   </div>
 
