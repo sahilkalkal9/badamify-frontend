@@ -98,8 +98,8 @@ export default function DashboardPage({ selectedLocation }) {
 
             <p className="mt-3 max-w-3xl text-sm font-medium leading-6 text-white/70">
               Total investment me setup cost + new stock purchase add hoga.
-              Daily production sirf stock consume karega, isliye making cost
-              double-count nahi hogi.
+              Daily production stock consume karega, isliye current stock value
+              me making cost deduct hogi.
             </p>
           </div>
 
